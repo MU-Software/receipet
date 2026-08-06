@@ -211,7 +211,7 @@ static void test_tspl(void) {
         return;
     }
 
-    CHECK(rcpt_enc_tspl(&job, img, 0, 0, 0, 1, RCPT_F_RAW) == RCPT_OK);
+    CHECK(rcpt_enc_tspl(&job, img, 0, 0, 0, 0, 1, RCPT_F_RAW) == RCPT_OK);
     n = take(&job, out, sizeof(out));
     CHECK(n == sizeof(prefix) - 1 + 4 + 2);
     CHECK(memcmp(out, prefix, sizeof(prefix) - 1) == 0);
@@ -221,11 +221,107 @@ static void test_tspl(void) {
     CHECK(out[sizeof(prefix) + 1] == 0xFF);
 
     /* RCPT_F_INVERT undoes the format default */
-    CHECK(rcpt_enc_tspl(&job, img, 0, 0, 0, 1, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    CHECK(rcpt_enc_tspl(&job, img, 0, 0, 0, 0, 1, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
     take(&job, out, sizeof(out));
     CHECK(out[sizeof(prefix) - 1] == 0xFF);
 
+    /* chunking emits one BITMAP per band, each carrying its own y */
+    CHECK(rcpt_enc_tspl(&job, img, 0, 5, 0, 1, 1, RCPT_F_RAW) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(n == 2 * (sizeof("BITMAP 0,5,2,1,0,") - 1 + 2 + 2));
+    CHECK(memcmp(out, "BITMAP 0,5,2,1,0,", 17) == 0);
+    CHECK(out[17] == 0x00 && out[18] == 0x55); /* row 0, inverted */
+    CHECK(memcmp(out + 21, "BITMAP 0,6,2,1,0,", 17) == 0);
+    CHECK(out[38] == 0xFF && out[39] == 0xFF); /* row 1 is blank -> all ink-off */
+
     rcpt_image_free(img);
+}
+
+static void test_brother(void) {
+    uint8_t out[1024];
+    rcpt_buf job;
+    rcpt_image *img;
+    size_t n;
+    int i;
+
+    img = make_sample(); /* 16x2 */
+    if (!img) {
+        CHECK(0);
+        return;
+    }
+
+    /* raw is just the raster lines: g 00 5A then 90 bytes, once per row */
+    CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 0, RCPT_F_RAW) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(n == 2 * (3 + 90));
+    CHECK(out[0] == 'g' && out[1] == 0x00 && out[2] == 90);
+    /* The line runs right to left, so offset 0 puts x=0 in the last bit of the
+     * last byte and 0xFF 0xAA arrives bit-reversed as 0x55 0xFF. */
+    CHECK(out[3 + 89] == 0xFF && out[3 + 88] == 0x55);
+    CHECK(out[3 + 87] == 0x00); /* the rest of the line is blank */
+    CHECK(out[3 + 90] == 'g');  /* second line follows */
+
+    /* offset shifts the image across the head, a whole byte at a time here */
+    CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 8, RCPT_F_RAW) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(out[3 + 89] == 0x00 && out[3 + 88] == 0xFF && out[3 + 87] == 0x55);
+
+    /* the wrapper carries the media in the print information command */
+    CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 0, 0) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    for (i = 0; i < 200; i++)
+        CHECK(out[i] == 0x00);
+    CHECK(out[200] == 0x1B && out[201] == '@');
+    CHECK(out[202] == 0x1B && out[203] == 'i' && out[204] == 'a' && out[205] == 1);
+    CHECK(out[206] == 0x1B && out[207] == 'i' && out[208] == 'z');
+    CHECK(out[210] == RCPT_BROTHER_MEDIA_DIE_CUT);
+    CHECK(out[211] == 38 && out[212] == 90);
+    CHECK(out[213] == 2 && out[214] == 0 && out[215] == 0 && out[216] == 0); /* two lines */
+    CHECK(out[n - 1] == 0x1A);                                               /* print and feed */
+
+    rcpt_image_free(img);
+}
+
+/* A 32-byte reply as a QL-820NWB sends it. */
+static void test_brother_status(void) {
+    uint8_t reply[RCPT_BROTHER_STATUS_LEN] = { 0 };
+    rcpt_brother_status st;
+
+    reply[0]  = 0x80;
+    reply[1]  = 0x20;
+    reply[2]  = 0x42;
+    reply[3]  = 0x34;
+    reply[4]  = 0x37; /* QL-720NW */
+    reply[8]  = 0x01; /* error information 1: no media */
+    reply[9]  = 0x10; /* error information 2: cover open */
+    reply[10] = 62;   /* media width, mm */
+    reply[11] = RCPT_BROTHER_MEDIA_CONTINUOUS;
+    reply[17] = 0;    /* continuous tape has no length */
+    reply[18] = 0x00; /* reply to status request */
+    reply[19] = 0x01; /* printing */
+    reply[20] = 0x00;
+    reply[21] = 0x0A;
+    reply[22] = 0x03; /* cooling started */
+
+    CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply)) == RCPT_OK);
+    CHECK(st.model == 0x37);
+    CHECK(st.media_width_mm == 62);
+    CHECK(st.media_length_mm == 0);
+    CHECK(st.media_type == RCPT_BROTHER_MEDIA_CONTINUOUS);
+    CHECK(st.status_type == 0x00);
+    CHECK(st.phase_type == 0x01);
+    CHECK(st.phase_number == 10);
+    CHECK(st.notification == 0x03);
+
+    /* the two error bytes must not be swapped */
+    CHECK((st.errors & RCPT_BROTHER_ERR_NO_MEDIA) != 0);
+    CHECK((st.errors & RCPT_BROTHER_ERR_COVER_OPEN) != 0);
+    CHECK((st.errors & RCPT_BROTHER_ERR_REPLACE_MEDIA) == 0);
+
+    /* a short or absent reply is not a status */
+    CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply) - 1) == RCPT_ERR_ARG);
+    CHECK(rcpt_parse_brother_status(&st, NULL, sizeof(reply)) == RCPT_ERR_ARG);
+    CHECK(rcpt_parse_brother_status(NULL, reply, sizeof(reply)) == RCPT_ERR_ARG);
 }
 
 static void test_cpcl_zpl(void) {
@@ -266,7 +362,7 @@ static rcpt_result as_escp(rcpt_buf *o, const rcpt_image *i) {
     return rcpt_enc_escp(o, i, 0, 0);
 }
 static rcpt_result as_tspl(rcpt_buf *o, const rcpt_image *i) {
-    return rcpt_enc_tspl(o, i, 0, 0, 0, 1, 0);
+    return rcpt_enc_tspl(o, i, 0, 0, 0, 0, 1, 0);
 }
 static rcpt_result as_cpcl(rcpt_buf *o, const rcpt_image *i) {
     return rcpt_enc_cpcl(o, i, 0, 0, 0, 1, 0);
@@ -340,6 +436,8 @@ int main(void) {
     test_escp();
     test_tspl();
     test_cpcl_zpl();
+    test_brother();
+    test_brother_status();
     test_encode_all();
     test_errors();
 
