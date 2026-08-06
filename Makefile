@@ -93,7 +93,12 @@ wasm-wasi: | build/wasi
 # install).
 NODE ?= $(if $(DOCKER),$(DOCKER_RUN) $(EMSDK_IMAGE) node,node)
 
-wasm-test: wasm
+# The demos compare their output against the native build's, byte for byte, so
+# the native reference has to exist first.  Sizes alone would not have caught
+# an argument list going stale across the FFI boundary; this does.
+wasm-test: wasm build/demo
+	@mkdir -p build/native
+	@./build/demo build/native/ >/dev/null
 	$(NODE) examples/node_demo.js
 	$(NODE) --experimental-wasi-unstable-preview1 examples/wasi_demo.mjs
 
