@@ -43,6 +43,8 @@ extern "C" {
  * TSPL, whose BITMAP prints on 0. */
 #define RCPT_F_RAW    (1u << 0)
 #define RCPT_F_INVERT (1u << 1)
+/* Brother only: leave the label uncut. */
+#define RCPT_F_BROTHER_NO_CUT (1u << 2)
 
 /* ------------------------------------------------------------------ */
 /* types                                                              */
@@ -115,14 +117,73 @@ RCPT_API rcpt_result rcpt_enc_escpos(rcpt_buf *out, const rcpt_image *img, uint3
 RCPT_API rcpt_result rcpt_enc_escp(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t flags);
 
 /* TSC label printers.  x, y are in dots; mode is the BITMAP combine mode,
- * 0 OVERWRITE / 1 OR / 2 XOR; copies of 0 means one label. */
-RCPT_API rcpt_result rcpt_enc_tspl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint8_t mode, uint32_t copies, uint32_t flags);
+ * 0 OVERWRITE / 1 OR / 2 XOR; copies of 0 means one label.  chunk_rows is as
+ * for ESC/POS - firmware that silently drops an oversized BITMAP is common,
+ * and a banded image still prints as one label. */
+RCPT_API rcpt_result rcpt_enc_tspl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint8_t mode, uint32_t chunk_rows, uint32_t copies,
+                                   uint32_t flags);
 
 /* Zebra/Comtec mobile printers.  dpi goes into the `!` header; 0 means 203. */
 RCPT_API rcpt_result rcpt_enc_cpcl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint32_t dpi, uint32_t copies, uint32_t flags);
 
 /* Zebra label printers. */
 RCPT_API rcpt_result rcpt_enc_zpl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint32_t copies, uint32_t flags);
+
+/* Brother QL label printers, raster mode - the only one that gets the scale
+ * right; their ESC/P mode is not worth the trouble.
+ *
+ * media_type is RCPT_BROTHER_MEDIA_*, width_mm and length_mm the media (0 for
+ * continuous tape) - all from rcpt_parse_brother_status() - and `offset` where
+ * the image starts across the 720-dot head, counted from the left.  The raster
+ * line itself runs right to left, so for die-cut media
+ * offset = 720 - image width - the label's right margin.  The grid is 300 dpi,
+ * so a millimetre is 11.81 dots, and the image must be the label's printable
+ * size, not the media size. */
+RCPT_API rcpt_result rcpt_enc_brother(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8_t width_mm, uint8_t length_mm, uint32_t offset,
+                                      uint32_t flags);
+
+/* ------------------------------------------------------------------ */
+/* Brother QL status                                                  */
+/* ------------------------------------------------------------------ */
+/* Send RCPT_BROTHER_STATUS_REQUEST and read back exactly
+ * RCPT_BROTHER_STATUS_LEN bytes - the reply carries no framing, so the length
+ * is how you know it is complete.  This is the one printer here that reports
+ * the media it has actually sensed. */
+#define RCPT_BROTHER_STATUS_REQUEST "\x1B\x69\x53" /* ESC i S */
+#define RCPT_BROTHER_STATUS_LEN     32
+
+/* media_type */
+#define RCPT_BROTHER_MEDIA_NONE       0x00
+#define RCPT_BROTHER_MEDIA_CONTINUOUS 0x0A
+#define RCPT_BROTHER_MEDIA_DIE_CUT    0x0B
+
+/* errors: information 1 in the low byte, 2 in the high one */
+#define RCPT_BROTHER_ERR_NO_MEDIA      (1u << 0)
+#define RCPT_BROTHER_ERR_END_OF_MEDIA  (1u << 1)
+#define RCPT_BROTHER_ERR_CUTTER_JAM    (1u << 2)
+#define RCPT_BROTHER_ERR_IN_USE        (1u << 4)
+#define RCPT_BROTHER_ERR_POWERED_OFF   (1u << 5)
+#define RCPT_BROTHER_ERR_REPLACE_MEDIA (1u << 8)
+#define RCPT_BROTHER_ERR_BUFFER_FULL   (1u << 9)
+#define RCPT_BROTHER_ERR_COMMS         (1u << 10)
+#define RCPT_BROTHER_ERR_COVER_OPEN    (1u << 12)
+#define RCPT_BROTHER_ERR_CANNOT_FEED   (1u << 14)
+#define RCPT_BROTHER_ERR_SYSTEM        (1u << 15)
+
+typedef struct rcpt_brother_status {
+    uint8_t model;           /* raw model code; 0x37 is a QL-720NW */
+    uint16_t errors;         /* RCPT_BROTHER_ERR_* */
+    uint8_t media_width_mm;  /* what the printer sensed */
+    uint8_t media_length_mm; /* 0 on continuous tape */
+    uint8_t media_type;      /* RCPT_BROTHER_MEDIA_* */
+    uint8_t status_type;     /* 0 reply, 1 printed, 2 error, 5 notify, 6 phase */
+    uint8_t phase_type;      /* 0 receiving, 1 printing */
+    uint16_t phase_number;
+    uint8_t notification; /* 3 cooling started, 4 cooling finished */
+} rcpt_brother_status;
+
+/* RCPT_ERR_ARG unless `len` is exactly RCPT_BROTHER_STATUS_LEN. */
+RCPT_API rcpt_result rcpt_parse_brother_status(rcpt_brother_status *out, const uint8_t *data, size_t len);
 
 #ifdef __cplusplus
 } /* extern "C" */

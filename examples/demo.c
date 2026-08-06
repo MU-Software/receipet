@@ -71,7 +71,7 @@ static rcpt_result as_escp(rcpt_buf *o, const rcpt_image *i) {
     return rcpt_enc_escp(o, i, 0, 0);
 }
 static rcpt_result as_tspl(rcpt_buf *o, const rcpt_image *i) {
-    return rcpt_enc_tspl(o, i, 0, 0, 0, 1, 0);
+    return rcpt_enc_tspl(o, i, 0, 0, 0, 0, 1, 0);
 }
 static rcpt_result as_cpcl(rcpt_buf *o, const rcpt_image *i) {
     return rcpt_enc_cpcl(o, i, 0, 0, 203, 1, 0);
@@ -79,13 +79,17 @@ static rcpt_result as_cpcl(rcpt_buf *o, const rcpt_image *i) {
 static rcpt_result as_zpl(rcpt_buf *o, const rcpt_image *i) {
     return rcpt_enc_zpl(o, i, 0, 0, 1, 0);
 }
+static rcpt_result as_brother(rcpt_buf *o, const rcpt_image *i) {
+    return rcpt_enc_brother(o, i, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 0, 0);
+}
 
 static const format FORMATS[] = {
-    { "escpos", as_escpos },
-    { "escp",   as_escp   },
-    { "tspl",   as_tspl   },
-    { "cpcl",   as_cpcl   },
-    { "zpl",    as_zpl    }
+    { "escpos",  as_escpos  },
+    { "escp",    as_escp    },
+    { "tspl",    as_tspl    },
+    { "cpcl",    as_cpcl    },
+    { "zpl",     as_zpl     },
+    { "brother", as_brother }
 };
 #define FORMAT_COUNT ((int)(sizeof FORMATS / sizeof FORMATS[0]))
 

@@ -53,9 +53,53 @@ CDEF = """
 
     rcpt_result rcpt_enc_escpos(rcpt_buf *out, const rcpt_image *img, uint32_t chunk_rows, uint32_t flags);
     rcpt_result rcpt_enc_escp(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t flags);
-    rcpt_result rcpt_enc_tspl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint8_t mode, uint32_t copies, uint32_t flags);
+    rcpt_result rcpt_enc_tspl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint8_t mode,
+                         uint32_t chunk_rows, uint32_t copies, uint32_t flags);
     rcpt_result rcpt_enc_cpcl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint32_t dpi, uint32_t copies, uint32_t flags);
     rcpt_result rcpt_enc_zpl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint32_t copies, uint32_t flags);
+    rcpt_result rcpt_enc_brother(rcpt_buf *out, const rcpt_image *img, uint8_t media_type,
+                         uint8_t width_mm, uint8_t length_mm, uint32_t offset, uint32_t flags);
+
+    typedef struct rcpt_brother_status {
+        uint8_t model;
+        uint16_t errors;
+        uint8_t media_width_mm;
+        uint8_t media_length_mm;
+        uint8_t media_type;
+        uint8_t status_type;
+        uint8_t phase_type;
+        uint16_t phase_number;
+        uint8_t notification;
+    } rcpt_brother_status;
+
+    rcpt_result rcpt_parse_brother_status(rcpt_brother_status *out, const uint8_t *data, size_t len);
+
+    /* `...` means "take the value from the real header at compile time". */
+    #define RCPT_VERSION_MAJOR ...
+    #define RCPT_VERSION_MINOR ...
+    #define RCPT_VERSION_PATCH ...
+    #define RCPT_MAX_DIM ...
+
+    #define RCPT_F_RAW ...
+    #define RCPT_F_INVERT ...
+    #define RCPT_F_BROTHER_NO_CUT ...
+
+    #define RCPT_BROTHER_STATUS_LEN ...
+    #define RCPT_BROTHER_MEDIA_NONE ...
+    #define RCPT_BROTHER_MEDIA_CONTINUOUS ...
+    #define RCPT_BROTHER_MEDIA_DIE_CUT ...
+
+    #define RCPT_BROTHER_ERR_NO_MEDIA ...
+    #define RCPT_BROTHER_ERR_END_OF_MEDIA ...
+    #define RCPT_BROTHER_ERR_CUTTER_JAM ...
+    #define RCPT_BROTHER_ERR_IN_USE ...
+    #define RCPT_BROTHER_ERR_POWERED_OFF ...
+    #define RCPT_BROTHER_ERR_REPLACE_MEDIA ...
+    #define RCPT_BROTHER_ERR_BUFFER_FULL ...
+    #define RCPT_BROTHER_ERR_COMMS ...
+    #define RCPT_BROTHER_ERR_COVER_OPEN ...
+    #define RCPT_BROTHER_ERR_CANNOT_FEED ...
+    #define RCPT_BROTHER_ERR_SYSTEM ...
 """
 
 
@@ -74,10 +118,23 @@ def declarations(text):
     return out
 
 
+# RCPT_API is a visibility attribute, and cdef() has no way to take a string
+# macro's value from the header, so neither can be checked.
+NOT_CONSTANTS = {"RCPT_API", "RCPT_BROTHER_STATUS_REQUEST"}
+
+
+def constants(text):
+    """Every integer RCPT_* macro in `text`."""
+    found = {m.group(1) for m in re.finditer(r"(?m)^\s*#\s*define\s+(RCPT_[A-Z0-9_]+)\s", text)}
+    return found - NOT_CONSTANTS
+
+
 def check_cdef_matches_header():
     """The compiler catches a wrong argument count but not a wrong argument
-    type, so compare the two sets of declarations before building."""
-    header = declarations((INCLUDE / "receipet.h").read_text())
+    type, and it says nothing at all about a constant nobody declared, so
+    compare both sets against the header before building."""
+    text = (INCLUDE / "receipet.h").read_text()
+    header = declarations(text)
     cdef = declarations(CDEF)
 
     for name, want in header.items():
@@ -86,6 +143,10 @@ def check_cdef_matches_header():
             raise SystemExit(f"build_ffi.py: {name}() is missing from CDEF")
         if got != want:
             raise SystemExit(f"build_ffi.py: {name}() disagrees with receipet.h\n  header: {want}\n  cdef:   {got}")
+
+    missing = constants(text) - constants(CDEF)
+    if missing:
+        raise SystemExit(f"build_ffi.py: missing from CDEF: {', '.join(sorted(missing))}")
 
 
 check_cdef_matches_header()

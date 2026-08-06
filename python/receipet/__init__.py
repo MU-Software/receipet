@@ -11,10 +11,29 @@ calls, never reaching into the packed buffer.
 
 from ._receipet import ffi, lib
 
-__all__ = ["INVERT", "RAW", "Image"]
+__all__ = ["BROTHER_ERRORS", "BROTHER_NO_CUT", "BROTHER_STATUS_REQUEST", "INVERT", "RAW", "BrotherStatus", "Image"]
 
-RAW = 1 << 0  # emit only the graphics command, no job wrapper
-INVERT = 1 << 1  # flip bit polarity relative to the format default
+#: Send these bytes to a Brother QL and read back exactly 32 in reply.
+BROTHER_STATUS_REQUEST = b"\x1b\x69\x53"
+
+RAW = lib.RCPT_F_RAW  # emit only the graphics command, no job wrapper
+INVERT = lib.RCPT_F_INVERT  # flip bit polarity relative to the format default
+BROTHER_NO_CUT = lib.RCPT_F_BROTHER_NO_CUT
+
+#: Brother QL error bits, in the order the printer reports them.
+BROTHER_ERRORS = {
+    lib.RCPT_BROTHER_ERR_NO_MEDIA: "no media",
+    lib.RCPT_BROTHER_ERR_END_OF_MEDIA: "end of media",
+    lib.RCPT_BROTHER_ERR_CUTTER_JAM: "cutter jam",
+    lib.RCPT_BROTHER_ERR_IN_USE: "printer in use",
+    lib.RCPT_BROTHER_ERR_POWERED_OFF: "printer turned off",
+    lib.RCPT_BROTHER_ERR_REPLACE_MEDIA: "replace media",
+    lib.RCPT_BROTHER_ERR_BUFFER_FULL: "expansion buffer full",
+    lib.RCPT_BROTHER_ERR_COMMS: "communication error",
+    lib.RCPT_BROTHER_ERR_COVER_OPEN: "cover open",
+    lib.RCPT_BROTHER_ERR_CANNOT_FEED: "media cannot be fed",
+    lib.RCPT_BROTHER_ERR_SYSTEM: "system error",
+}
 
 _ERRORS = {
     lib.RCPT_ERR_ARG: (ValueError, "invalid argument"),
@@ -29,6 +48,24 @@ def _check(rc, what):
         return
     cls, msg = _ERRORS.get(rc, (RuntimeError, f"unknown error {rc}"))
     raise cls(f"{what}: {msg}")
+
+
+def BrotherStatus(reply):  # noqa: N802 - reads as a constructor
+    """Decode the 32-byte reply to BROTHER_STATUS_REQUEST."""
+    st = ffi.new("rcpt_brother_status *")
+    _check(lib.rcpt_parse_brother_status(st, reply, len(reply)), "Brother status")
+    return {
+        "model": st.model,
+        "errors": st.errors,
+        "error_names": [name for bit, name in BROTHER_ERRORS.items() if st.errors & bit],
+        "media_width_mm": st.media_width_mm,
+        "media_length_mm": st.media_length_mm,
+        "media_type": st.media_type,
+        "status_type": st.status_type,
+        "phase_type": st.phase_type,
+        "phase_number": st.phase_number,
+        "notification": st.notification,
+    }
 
 
 class Image:
@@ -93,9 +130,10 @@ class Image:
         buf = ffi.new("rcpt_buf *")
         return self._take(lib.rcpt_enc_escp(buf, self._img, mode, flags), buf, "ESC/P")
 
-    def tspl(self, x=0, y=0, mode=0, copies=1, flags=0):
+    def tspl(self, x=0, y=0, mode=0, chunk_rows=0, copies=1, flags=0):
+        """chunk_rows bands the image; firmware that drops a big BITMAP is common."""
         buf = ffi.new("rcpt_buf *")
-        return self._take(lib.rcpt_enc_tspl(buf, self._img, x, y, mode, copies, flags), buf, "TSPL")
+        return self._take(lib.rcpt_enc_tspl(buf, self._img, x, y, mode, chunk_rows, copies, flags), buf, "TSPL")
 
     def cpcl(self, x=0, y=0, dpi=203, copies=1, flags=0):
         buf = ffi.new("rcpt_buf *")
@@ -104,6 +142,11 @@ class Image:
     def zpl(self, x=0, y=0, copies=1, flags=0):
         buf = ffi.new("rcpt_buf *")
         return self._take(lib.rcpt_enc_zpl(buf, self._img, x, y, copies, flags), buf, "ZPL")
+
+    def brother(self, media_type=0x0B, width_mm=38, length_mm=90, offset=0, flags=0):
+        """Raster mode; the media arguments come from BrotherStatus()."""
+        buf = ffi.new("rcpt_buf *")
+        return self._take(lib.rcpt_enc_brother(buf, self._img, media_type, width_mm, length_mm, offset, flags), buf, "Brother")
 
     def __repr__(self):
         return f"<receipet.Image {self.width}x{self.height}>"
