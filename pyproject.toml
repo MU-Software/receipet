@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61", "cffi>=1.15"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "receipet"
+version = "0.1.0"
+description = "Monochrome image buffer with ESC/POS, ESC/P, TSPL, CPCL and ZPL output"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = ["cffi>=1.15"]
+
+# `uv sync` installs these on top of the runtime dependency, which is what
+# the in-place build in the Makefile needs.
+[dependency-groups]
+dev = ["setuptools>=61", "cffi>=1.15", "ruff>=0.6"]
+
+[tool.ruff]
+line-length = 150          # same ceiling as the C side
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.setuptools]
+packages = ["receipet"]
+
+[tool.setuptools.package-dir]
+receipet = "python/receipet"

@@ -1,0 +1,52 @@
+# Attach (1TBS): the opening brace stays on the same line everywhere, functions
+# included.  The rest is tuned to describe the code that is already here rather
+# than to reshape it.
+Language: Cpp
+BasedOnStyle: LLVM
+
+# 150 is a ceiling for *code* - it keeps the seven-parameter encoder
+# declarations on one line.  Prose is a different thing: comments are wrapped
+# near 80 by hand, which is where prose reads best.  clang-format cannot
+# enforce that (ReflowComments only splits over-long lines, never joins short
+# ones), so it is a convention, not a rule.
+ColumnLimit: 150
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Attach
+
+# Guard clauses are written on one line throughout - `if (!img) return 0;`
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+
+# Runs of related assignments and struct initialisers are hand-aligned; keep
+# that, since it is what makes the field-by-field code readable.
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: false
+AlignArrayOfStructures: Left
+AlignEscapedNewlines: Left
+AlignTrailingComments: true
+
+# Parameters that do not fit wrap under the opening parenthesis.
+AlignAfterOpenBracket: Align
+BinPackParameters: true
+BinPackArguments: true
+
+# Nested preprocessor conditionals stay indented, and runs of #defines line up
+# the same way runs of assignments do.
+IndentPPDirectives: AfterHash
+AlignConsecutiveMacros: Consecutive
+SpacesBeforeTrailingComments: 2
+
+# `{ ESC, '@' }`, not `{ESC, '@'}`.
+Cpp11BracedListStyle: false
+
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+SortIncludes: Never
+ReflowComments: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+InsertNewlineAtEOF: true

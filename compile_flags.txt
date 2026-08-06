@@ -1,0 +1,10 @@
+# Read by clangd (and other libclang tools) so the editor resolves #include
+# and reports the same warnings the Makefile does.  Keep in step with CFLAGS.
+-Iinclude
+-Isrc
+-std=c99
+-Wall
+-Wextra
+-Wpedantic
+-Wshadow
+-Wconversion

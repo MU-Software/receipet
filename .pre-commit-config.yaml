@@ -1,0 +1,29 @@
+# Install once with:  uvx pre-commit install
+# Run over everything: uvx pre-commit run --all-files
+#
+# The same two formatters the Makefile's `make fmt` runs, plus the usual
+# whitespace hygiene.  Keep the versions here in step with what CI uses.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.2
+    hooks:
+      - id: clang-format
+        types_or: [c]
+        # .clang-format carries the style: K&R braces, 4-space indent, 150 columns
+        files: ^(include|src|examples|tests)/.*\.(c|h)$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format

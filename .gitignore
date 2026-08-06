@@ -1,0 +1,22 @@
+# build output - the .wasm files live under build/ too
+build/
+dist/
+*.o
+*.a
+*.so
+*.dSYM/
+
+# demo.<fmt>, written into the current directory when run with no argument
+/demo.*
+
+# python
+.venv/
+__pycache__/
+*.egg-info/
+.ruff_cache/
+python/receipet/_receipet.c
+
+# editors and tooling
+.DS_Store
+compile_commands.json
+.cache/
