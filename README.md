@@ -63,15 +63,15 @@ predictable.
 | `rcpt_image_set_pixel` / `_get_pixel` | one pixel; out-of-range writes are dropped |
 | `rcpt_enc_escpos(&buf, img, chunk_rows, flags)` | thermal receipt printers |
 | `rcpt_enc_escp(&buf, img, mode, flags)` | dot matrix printers |
-| `rcpt_enc_tspl(&buf, img, x, y, mode, copies, flags)` | TSC label printers |
+| `rcpt_enc_tspl(&buf, img, x, y, mode, chunk_rows, copies, flags)` | TSC label printers |
 | `rcpt_enc_cpcl(&buf, img, x, y, dpi, copies, flags)` | Zebra/Comtec mobile printers |
 | `rcpt_enc_zpl(&buf, img, x, y, copies, flags)` | Zebra label printers |
 | `rcpt_enc_brother(&buf, img, media, w_mm, l_mm, offset, flags)` | Brother QL, raster mode |
 | `rcpt_parse_brother_status(&st, data, len)` | decode a Brother QL status reply |
 | `rcpt_buf_free(&buf)` | release the bytes, and zero the struct |
 
-That is the whole public surface: eleven functions and three types —
-`rcpt_image`, `rcpt_buf` and the `rcpt_result` codes.
+That is the whole public surface: thirteen functions and four types —
+`rcpt_image`, `rcpt_buf`, `rcpt_brother_status` and the `rcpt_result` codes.
 
 **Results.** Anything that can fail returns a `rcpt_result` — `RCPT_OK`,
 `RCPT_ERR_ARG`, `RCPT_ERR_NOMEM` or `RCPT_ERR_INTERNAL` — and delivers its
@@ -337,7 +337,7 @@ the head, that runs out of room. Latin and digits stay readable well below it.
 ## Layout
 
 ```
-include/receipet.h    public API - thirteen functions and three types
+include/receipet.h    public API - thirteen functions and four types
 src/rcpt_image.c      image buffer + pixel ops
 src/rcpt_buf.c        the byte buffer and the entry check every encoder makes
 src/rcpt_internal.h   the buffer's cursor role, the two-pass contract
