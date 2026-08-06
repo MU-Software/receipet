@@ -117,13 +117,13 @@ C_SOURCES := $(wildcard include/*.h src/*.c src/*.h src/lang/*.c examples/*.c te
 
 fmt:
 	clang-format -i $(C_SOURCES)
-	$(UV) run ruff check --fix python/
-	$(UV) run ruff format python/
+	$(UV) run ruff check --fix python/ tools/
+	$(UV) run ruff format python/ tools/
 
 lint:
 	clang-format --dry-run -Werror $(C_SOURCES)
-	$(UV) run ruff check python/
-	$(UV) run ruff format --check python/
+	$(UV) run ruff check python/ tools/
+	$(UV) run ruff format --check python/ tools/
 
 clean:
 	rm -rf build python/build python/receipet/__pycache__ \
