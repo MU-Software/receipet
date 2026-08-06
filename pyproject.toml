@@ -1,14 +1,17 @@
 [build-system]
-requires = ["setuptools>=61", "cffi>=1.15"]
+requires = ["setuptools>=77", "cffi>=1.15"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "receipet"
 version = "0.1.0"
-description = "Monochrome image buffer with ESC/POS, ESC/P, TSPL, CPCL and ZPL output"
+description = "Monochrome image buffer with ESC/POS, ESC/P, TSPL, CPCL, ZPL and Brother QL output"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
+# Private, not open source. LicenseRef- is PEP 639's form for a licence that is not in the SPDX list.
+license = "LicenseRef-Proprietary"
+# PyPI rejects any "Private ::" classifier, so a stray `twine upload` fails instead of publishing this.
+classifiers = ["Private :: Do Not Upload"]
 dependencies = ["cffi>=1.15"]
 
 # `uv sync` installs these on top of the runtime dependency, which is what
