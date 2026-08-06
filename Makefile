@@ -20,6 +20,10 @@ AR      ?= ar
 CFLAGS  ?= -O2
 CFLAGS  += -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Iinclude -Isrc
 
+# -MMD -MP records which headers each object used, so editing receipet.h or
+# rcpt_internal.h rebuilds what depends on it instead of leaving a stale .o.
+CFLAGS  += -MMD -MP
+
 SRC     := $(wildcard src/*.c) $(wildcard src/lang/*.c)
 OBJ     := $(SRC:src/%.c=build/obj/%.o)
 LIB     := build/libreceipet.a
@@ -129,6 +133,8 @@ lint:
 	clang-format --dry-run -Werror $(C_SOURCES)
 	$(UV) run ruff check python/ tools/
 	$(UV) run ruff format --check python/ tools/
+
+-include $(OBJ:.o=.d) build/demo.d build/test_receipet.d
 
 clean:
 	rm -rf build python/build python/receipet/__pycache__ \
