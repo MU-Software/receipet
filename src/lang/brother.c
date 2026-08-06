@@ -13,8 +13,11 @@
  *   g 00 5A <90 bytes>               one raster line, repeated
  *   SUB                              print and feed
  *
- * A raster line is always 90 bytes - 720 dots - whatever the media is, and it
- * runs right to left: bit 7 of byte 0 is the *rightmost* dot of the head.
+ * A raster line is the width of the print head, not of the media: 90 bytes,
+ * 720 dots, on every QL from the 500 to the 820NWB.  The QL-1050 and QL-1060N
+ * have a 162-byte head, which this encoder does not currently support.
+ *
+ * The line runs right to left: bit 7 of byte 0 is the *rightmost* dot.
  * `offset` is counted from the left anyway, as everywhere else here, so for
  * die-cut media
  *
@@ -36,7 +39,7 @@
 #define ESC 0x1B
 #define SUB 0x1A
 
-#define RASTER_BYTES 90 /* 720 dots; fixed across the QL series */
+#define RASTER_BYTES 90 /* 720 dots: QL-500 through QL-820. The QL-1050/1060N head is wider */
 
 static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8_t width_mm, uint8_t length_mm, uint32_t offset, uint32_t flags) {
     int raw    = (flags & RCPT_F_RAW) != 0;

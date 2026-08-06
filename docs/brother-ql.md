@@ -53,9 +53,11 @@ label table, which is where these came from.
 
 ### The raster line runs right to left
 
-A raster line is always 90 bytes — 720 dots — whatever the media is.  Bit 7 of
-byte 0 is the **rightmost** dot of the head, not the leftmost.  Probed
-directly, one black pixel at a time:
+A raster line is the width of the print head, not of the media: 90 bytes,
+720 dots, on every QL from the 500 to the 820NWB — 162 bytes on the QL-1050
+and QL-1060N, which this encoder does not support.  Bit 7 of byte 0 is the
+**rightmost** dot of the head, not the leftmost.  Probed directly, one black
+pixel at a time:
 
     image x=  0  ->  g-line dot 424
     image x=412  ->  g-line dot 12
@@ -118,6 +120,16 @@ it.  Removing the CUPS queue is not enough.
 then claim **without resetting** — a reset re-enumerates the device and
 launchd starts the daemon again.  After claiming, force alt setting 0
 (`tools/hw/usbio.py` does this).
+
+## Known limitations
+
+The head width is hardcoded at 720 dots (`RASTER_BYTES 90`), which covers the
+QL-500 through the QL-820NWB.  The QL-1050 and QL-1060N have a 162-byte head
+and would print wrongly.  Making it a parameter was considered and deferred:
+there is no such printer here to verify against, and after this session the
+bar for adding an untestable path is higher than it was.  `head_dots` as a
+plain argument defaulting to 720 is the shape to reach for when one turns up —
+`offset` then generalises to `head_dots - image width - offset_r`.
 
 ## Still unverified
 

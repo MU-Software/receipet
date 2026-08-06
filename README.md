@@ -165,8 +165,10 @@ however the density and line spacing are set, and a stray `CR` makes it feed
 twice per band. Raster mode lands on a 300 dpi grid exactly — measured on
 38 × 90 mm die-cut media, 100 raster lines are 8.5 mm and 40 dots are 3.4 mm.
 
-A raster line is always 90 bytes — 720 dots — whatever the media is, and it
-runs **right to left**: bit 7 of byte 0 is the rightmost dot of the head.
+A raster line is the width of the print head, not of the media — 90 bytes,
+720 dots, on every QL from the 500 to the 820NWB. (The QL-1050 and QL-1060N
+have a 162-byte head; this encoder does not support them.) It runs **right to
+left**: bit 7 of byte 0 is the rightmost dot of the head.
 `offset` is counted from the left anyway, as everywhere else here, so for
 die-cut media
 
