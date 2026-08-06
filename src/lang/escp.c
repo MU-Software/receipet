@@ -14,19 +14,10 @@
 
 #define ESC 0x1B
 
-static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t flags) {
-    int raw         = (flags & RCPT_F_RAW) != 0;
-    int invert      = RCPT_INVERT(flags, 0);
+static void bands(rcpt_buf *out, const rcpt_image *img, uint8_t mode, int invert) {
     uint32_t dots   = (mode >= 32) ? 24u : 8u; /* rows per band */
     uint32_t nbytes = dots / 8u;               /* bytes per column */
     uint32_t y0;
-
-    if (!raw) {
-        uint8_t init[2]    = { ESC, '@' };
-        uint8_t spacing[3] = { ESC, '3', 24 }; /* one band's worth of feed */
-        rcpt_w_bytes(out, init, sizeof(init));
-        rcpt_w_bytes(out, spacing, sizeof(spacing));
-    }
 
     for (y0 = 0; y0 < img->height; y0 += dots) {
         uint8_t hdr[5];
@@ -55,6 +46,19 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t fl
         }
         rcpt_w_str(out, "\r\n");
     }
+}
+
+static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t flags) {
+    int raw = (flags & RCPT_F_RAW) != 0;
+
+    if (!raw) {
+        uint8_t init[2]    = { ESC, '@' };
+        uint8_t spacing[3] = { ESC, '3', 24 }; /* one band's worth of feed */
+        rcpt_w_bytes(out, init, sizeof(init));
+        rcpt_w_bytes(out, spacing, sizeof(spacing));
+    }
+
+    bands(out, img, mode, RCPT_INVERT(flags, 0));
 
     if (!raw) {
         uint8_t restore[2] = { ESC, '2' }; /* back to 1/6" line spacing */
