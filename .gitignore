@@ -14,7 +14,7 @@ dist/
 __pycache__/
 *.egg-info/
 .ruff_cache/
-python/receipet/_receipet.c
+packages/python/cffi-port/receipet/_receipet.c
 
 # npm
 node_modules/

@@ -35,4 +35,4 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 packages = ["receipet"]
 
 [tool.setuptools.package-dir]
-receipet = "python/receipet"
+receipet = "packages/python/cffi-port/receipet"

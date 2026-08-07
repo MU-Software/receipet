@@ -328,7 +328,7 @@ already 1-bit — the usual way to get a logo onto a receipt.
 
 The binding is CFFI **API mode**: the C sources are compiled into the
 extension, so there is no shared library to locate at runtime. The `cdef`
-block in `python/build_ffi.py` repeats the declarations from `receipet.h`
+block in `build_ffi.py` repeats the declarations from `receipet.h`
 because CFFI has no C preprocessor; the build compares the two and fails on a
 mismatch, since the compiler catches a wrong argument count but not a wrong
 argument type.
@@ -395,7 +395,7 @@ src/lang/*.c          one file per printer language: options, encoder, wrapper
 tests/                self-contained test suite (no framework)
 examples/             C, Node/Emscripten and WASI demos
 packages/js/          the npm package: hand-written .d.ts, emcc output in dist/
-python/               CFFI builder + package
+packages/python/      the CFFI builder and the package it produces
 tools/hw/             USB harness used to check the encoders on real printers
 docs/                 what went wrong on the way here, and what it turned out
                       to be - start at docs/README.md

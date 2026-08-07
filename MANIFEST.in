@@ -2,4 +2,4 @@ include include/*.h
 include src/*.c
 include src/*.h
 include src/lang/*.c
-include python/build_ffi.py
+include packages/python/cffi-port/build_ffi.py

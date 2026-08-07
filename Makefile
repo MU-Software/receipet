@@ -149,13 +149,15 @@ version-check:
 # uv sync installs the package editable, so the extension is rebuilt from the
 # C sources and `import receipet` works with no PYTHONPATH.  Without uv:
 # pip install -e .
+PY_PKG := packages/python/cffi-port
+
 UV ?= uv
 
 python:
 	$(UV) sync --reinstall-package receipet
 
 python-test: python
-	$(UV) run python python/example.py
+	$(UV) run python $(PY_PKG)/example.py
 
 # ---- formatting ------------------------------------------------------------
 # C style lives in .clang-format, Python style in pyproject.toml.  The same
@@ -163,19 +165,21 @@ python-test: python
 # them to the commit hook.
 C_SOURCES := $(wildcard include/*.h src/*.c src/*.h src/lang/*.c examples/*.c tests/*.c)
 
+PY_SOURCES := $(PY_PKG)/ tools/ .github/scripts/
+
 fmt:
 	clang-format -i $(C_SOURCES)
-	$(UV) run ruff check --fix python/ tools/ .github/scripts/
-	$(UV) run ruff format python/ tools/ .github/scripts/
+	$(UV) run ruff check --fix $(PY_SOURCES)
+	$(UV) run ruff format $(PY_SOURCES)
 
 lint:
 	clang-format --dry-run -Werror $(C_SOURCES)
-	$(UV) run ruff check python/ tools/ .github/scripts/
-	$(UV) run ruff format --check python/ tools/ .github/scripts/
+	$(UV) run ruff check $(PY_SOURCES)
+	$(UV) run ruff format --check $(PY_SOURCES)
 
 -include $(OBJ:.o=.d) build/demo.d build/test_receipet.d
 
 clean:
-	rm -rf build $(EMSCRIPTEN_PKG)/dist python/build python/receipet/__pycache__ \
-	       python/receipet/_receipet.c python/receipet/_receipet.o \
-	       python/receipet/_receipet*.so receipet.egg-info
+	rm -rf build $(EMSCRIPTEN_PKG)/dist $(PY_PKG)/build $(PY_PKG)/receipet/__pycache__ \
+	       $(PY_PKG)/receipet/_receipet.c $(PY_PKG)/receipet/_receipet.o \
+	       $(PY_PKG)/receipet/_receipet*.so receipet.egg-info

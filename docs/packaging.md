@@ -2,6 +2,27 @@
 
 Mostly a record of what was tried and rejected, so it does not get tried again.
 
+## Where the ports live
+
+`packages/<language>/<port>/` — `packages/js/emscripten-port/`,
+`packages/python/cffi-port/`.  The directory is named for how the binding is
+made rather than for the language again, because the language is already the
+directory above it; a second binding for the same language then lands beside
+the first instead of forcing a rename.
+
+`package.json` sits inside its package.  **`pyproject.toml` does not** — it
+stays at the repository root, and that asymmetry is deliberate.  The cffi build
+compiles `src/` and `include/` into the extension, and `Extension()` rejects
+absolute paths (see `rel()` below), so the build has to run from a directory
+that contains both the C sources and the package.  Only the root does.  Moving
+it down would mean either a uv workspace or `../../../src` throughout, for no
+gain.
+
+So `python/` moved but the packaging metadata did not, and `MANIFEST.in`,
+`setup.py`'s `cffi_modules` and `[tool.setuptools.package-dir]` all name the
+new path.  After changing them, the sdist was rebuilt and installed into a
+clean environment — see below for why that is not optional.
+
 ## setup.py stays
 
 `hatchling` was evaluated as a way to delete `setup.py`.  It cannot:

@@ -11,7 +11,7 @@ from pathlib import Path
 from cffi import FFI
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = HERE.parents[2]  # packages/python/cffi-port -> repo root
 SRC = ROOT / "src"
 INCLUDE = ROOT / "include"
 
