@@ -1,0 +1,3 @@
+# Empty on purpose.  Without it npm falls back to the repo's .gitignore, which
+# has dist/ in it, and packs a package with no dist/ - it publishes, then fails
+# at import.  package.json's `files` decides the contents.

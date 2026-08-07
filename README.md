@@ -9,7 +9,7 @@ A small C99 library that does three things:
 
 No dependencies beyond `<stdint.h>`, `<stddef.h>`, `<string.h>` and `<stdlib.h>`.
 Builds for the host, for Emscripten and for WASI, and ships a CFFI binding for
-Python.
+Python and an npm package for JavaScript.
 
 Two allocations in the whole library: one per image, one per encoded job. On a
 microcontroller the pattern is to allocate the image once at startup and
@@ -224,9 +224,9 @@ Both WASM toolchains run in Docker, so nothing has to be installed locally:
 
 ```sh
 make wasm         # both targets
-make wasm-emcc    # -> build/emcc/receipet.js + .wasm   (emscripten/emsdk)
+make wasm-emcc    # -> the npm package's dist/          (emscripten/emsdk)
 make wasm-wasi    # -> build/wasi/receipet.wasm         (ghcr.io/webassembly/wasi-sdk)
-make wasm-test    # runs examples/node_demo.js and examples/wasi_demo.mjs
+make wasm-test    # runs examples/node_demo.mjs and examples/wasi_demo.mjs
 ```
 
 Set `DOCKER=` (empty) to use `emcc` / a local wasi-sdk from `PATH` instead, or
@@ -244,9 +244,57 @@ offset 0, `cap` at 4, `len` at 8 — and returns a result code, and that same
 pointer goes straight to `rcpt_buf_free`. `rcpt_image_new` works the same way
 with a 4-byte slot.
 
-See [examples/node_demo.js](examples/node_demo.js) (Emscripten) and
+See [examples/node_demo.mjs](examples/node_demo.mjs) (Emscripten) and
 [examples/wasi_demo.mjs](examples/wasi_demo.mjs) (WASI) for the calling
 convention.
+
+The Emscripten build is a single `.mjs` — the wasm is embedded as a data URI,
+so there is no second file for a bundler to resolve — and it is built straight
+into [packages/js/emscripten-port/](packages/js/emscripten-port/), which is the
+npm package. `examples/node_demo.mjs` imports the package's own entry point, so
+what it checks against the native build is the artefact that ships.
+
+### The npm package
+
+Published to GitHub Packages as **`@mu-software/receipet`**, private, by
+[.github/workflows/release.yml](.github/workflows/release.yml) on every
+push to `main`. GitHub Packages has no anonymous access, so installing it needs
+a token with `read:packages`;
+[its README](packages/js/emscripten-port/README.md) has the `.npmrc` for that,
+and the usage the package page shows.
+
+```sh
+make emscripten-port-pack   # what `npm publish` would send, without sending it
+make version-check          # receipet.h and pyproject.toml agree
+```
+
+### Two versions
+
+They answer different questions, so they are not kept in step.
+
+**The API version** — `RCPT_VERSION_*` in `include/receipet.h`, repeated in
+`pyproject.toml`, `0.1.0` today. It describes the C API, a human changes it,
+and it is the only version a C consumer can see. `tools/api_version.py`, via
+`make version-check`, keeps the two copies together.
+
+**The release version** — dated, `YYYY.M.N`, where `N` counts that month's
+releases: `2026.8.61` is the sixty-first release of August 2026.
+`.github/scripts/release_version.py` derives it from the release tags and the
+workflow stamps it into `package.json`, which is why that file carries a
+`0.0.0` placeholder on `main`. Nothing is committed back; the tag is the record
+of what shipped. That script lives with the workflow because nothing else calls
+it.
+
+`N` is the highest existing `N` plus one rather than the number of tags —
+deleting a tag would otherwise reissue a number, and npm accepts a given
+version exactly once, with no way to overwrite or delete and retry. For the
+same reason the tag is pushed before `npm publish` rather than after: a number
+that gets burned costs nothing, a number issued twice cannot be published at
+all.
+
+Note that the month goes in without a leading zero. `2026.08.61` is not valid
+semver — numeric identifiers may not have one — and the registry rejects it,
+though `npm pack` will happily build it.
 
 ### Python
 
@@ -346,6 +394,7 @@ src/rcpt_internal.h   the buffer's cursor role, the two-pass contract
 src/lang/*.c          one file per printer language: options, encoder, wrapper
 tests/                self-contained test suite (no framework)
 examples/             C, Node/Emscripten and WASI demos
+packages/js/          the npm package: hand-written .d.ts, emcc output in dist/
 python/               CFFI builder + package
 tools/hw/             USB harness used to check the encoders on real printers
 docs/                 what went wrong on the way here, and what it turned out

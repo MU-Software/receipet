@@ -1,15 +1,17 @@
 # receipet - build for host, Emscripten and WASI.
 #
-#   make                 static lib + demo + tests (host)
-#   make test            build and run the test suite
-#   make wasm            both WASM targets
-#   make wasm-emcc       build/emcc/receipet.js|.wasm (docker: emscripten/emsdk)
-#   make wasm-wasi       build/wasi/receipet.wasm     (docker: webassembly/wasi-sdk)
-#   make wasm-test       run both WASM builds under Node
-#   make python          build and install the CFFI extension (editable)
-#   make python-test     run the Python example
-#   make fmt             format C and Python in place
-#   make lint            check formatting without touching anything
+#   make                       static lib + demo + tests (host)
+#   make test                  build and run the test suite
+#   make wasm                  both WASM targets
+#   make wasm-emcc             the npm package's dist/  (docker: emscripten/emsdk)
+#   make wasm-wasi             build/wasi/receipet.wasm (docker: wasi-sdk)
+#   make wasm-test             run both WASM builds under Node
+#   make emscripten-port-pack  what `npm publish` would send, without sending it
+#   make version-check         receipet.h and pyproject.toml agree on the API
+#   make python                build and install the CFFI extension (editable)
+#   make python-test           run the Python example
+#   make fmt                   format C and Python in place
+#   make lint                  check formatting without touching anything
 #   make clean
 #
 # The WASM targets shell out to docker so that nothing has to be installed
@@ -32,7 +34,10 @@ LIB     := build/libreceipet.a
 # attribute under __wasm__); the allocator does not, so name it explicitly.
 EMCC_EXPORTS := _malloc,_free
 
-.PHONY: all test clean wasm wasm-emcc wasm-wasi wasm-test python python-test fmt lint
+.PHONY: all test clean wasm wasm-emcc wasm-wasi \
+        wasm-test wasm-test-emcc wasm-test-wasi \
+        emscripten-port-pack version-check \
+        python python-test fmt lint
 
 all: $(LIB) build/demo build/test_receipet
 
@@ -57,6 +62,8 @@ test: build/test_receipet
 	./build/test_receipet
 
 # ---- WebAssembly -----------------------------------------------------------
+EMSCRIPTEN_PKG := packages/js/emscripten-port
+
 DOCKER          ?= docker
 EMSDK_IMAGE     ?= emscripten/emsdk:latest
 WASI_SDK_IMAGE  ?= ghcr.io/webassembly/wasi-sdk:latest
@@ -72,17 +79,23 @@ WASM_CFLAGS = -O2 -Wall -Wextra -Iinclude -Isrc
 
 wasm: wasm-emcc wasm-wasi
 
-build/emcc build/wasi: | build
+build/wasi: | build
 	@mkdir -p $@
 
-# MODULARIZE gives a factory function usable from bundlers and from Node.
-wasm-emcc: | build/emcc
+$(EMSCRIPTEN_PKG)/dist:
+	@mkdir -p $@
+
+# MODULARIZE + EXPORT_ES6 gives a factory as the .mjs default export.
+# SINGLE_FILE embeds the wasm as a data URI: a third more bytes, and nothing
+# for a bundler to resolve.
+wasm-emcc: | $(EMSCRIPTEN_PKG)/dist
 	$(if $(DOCKER),$(DOCKER_RUN) $(EMSDK_IMAGE)) emcc $(WASM_CFLAGS) $(SRC) \
-	    -o build/emcc/receipet.js \
-	    -sMODULARIZE=1 -sEXPORT_NAME=createReceipet \
+	    -o $(EMSCRIPTEN_PKG)/dist/receipet.mjs \
+	    -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createReceipet \
 	    -sEXPORTED_FUNCTIONS=$(EMCC_EXPORTS) \
 	    -sEXPORTED_RUNTIME_METHODS=HEAPU8,ccall,cwrap,getValue,setValue \
-	    -sALLOW_MEMORY_GROWTH=1 -sFILESYSTEM=0
+	    -sALLOW_MEMORY_GROWTH=1 -sFILESYSTEM=0 \
+	    -sSINGLE_FILE=1 -sENVIRONMENT=web,node
 
 # A reactor module (no main), so the host calls the exports directly.
 wasm-wasi: | build/wasi
@@ -100,11 +113,37 @@ NODE ?= $(if $(DOCKER),$(DOCKER_RUN) $(EMSDK_IMAGE) node,node)
 # The demos compare their output against the native build's, byte for byte, so
 # the native reference has to exist first.  Sizes alone would not have caught
 # an argument list going stale across the FFI boundary; this does.
-wasm-test: wasm build/demo
+#
+# One of the six files stands for all of them - ./build/demo writes them in a
+# single run - so that the demos share one run rather than a phony target's.
+NATIVE_REF := build/native/demo.escpos
+
+$(NATIVE_REF): build/demo
 	@mkdir -p build/native
 	@./build/demo build/native/ >/dev/null
-	$(NODE) examples/node_demo.js
+
+wasm-test-emcc: wasm-emcc $(NATIVE_REF)
+	$(NODE) examples/node_demo.mjs
+
+wasm-test-wasi: wasm-wasi $(NATIVE_REF)
 	$(NODE) --experimental-wasi-unstable-preview1 examples/wasi_demo.mjs
+
+wasm-test: wasm-test-emcc wasm-test-wasi
+
+# ---- npm package -----------------------------------------------------------
+# A package that ships without dist/ publishes cleanly and fails at import, so
+# check the file list before tagging.  --dry-run does not contact the registry.
+NPM ?= npm
+
+emscripten-port-pack: wasm-emcc
+	cd $(EMSCRIPTEN_PKG) && $(NPM) publish --dry-run
+
+# ---- versions --------------------------------------------------------------
+# Not through uv: the script is stdlib-only so CI can run it before installing.
+PYTHON ?= python3
+
+version-check:
+	$(PYTHON) tools/api_version.py
 
 # ---- Python ----------------------------------------------------------------
 # uv sync installs the package editable, so the extension is rebuilt from the
@@ -126,17 +165,17 @@ C_SOURCES := $(wildcard include/*.h src/*.c src/*.h src/lang/*.c examples/*.c te
 
 fmt:
 	clang-format -i $(C_SOURCES)
-	$(UV) run ruff check --fix python/ tools/
-	$(UV) run ruff format python/ tools/
+	$(UV) run ruff check --fix python/ tools/ .github/scripts/
+	$(UV) run ruff format python/ tools/ .github/scripts/
 
 lint:
 	clang-format --dry-run -Werror $(C_SOURCES)
-	$(UV) run ruff check python/ tools/
-	$(UV) run ruff format --check python/ tools/
+	$(UV) run ruff check python/ tools/ .github/scripts/
+	$(UV) run ruff format --check python/ tools/ .github/scripts/
 
 -include $(OBJ:.o=.d) build/demo.d build/test_receipet.d
 
 clean:
-	rm -rf build python/build python/receipet/__pycache__ \
+	rm -rf build $(EMSCRIPTEN_PKG)/dist python/build python/receipet/__pycache__ \
 	       python/receipet/_receipet.c python/receipet/_receipet.o \
 	       python/receipet/_receipet*.so receipet.egg-info

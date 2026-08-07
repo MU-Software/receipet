@@ -2,7 +2,7 @@
  * Emscripten smoke test / usage example.
  *
  *   make wasm-emcc && ./build/demo build/native/
- *   node examples/node_demo.js
+ *   node examples/node_demo.mjs
  *
  * Everything is plain pointer arithmetic against the wasm heap: allocate an
  * image, poke pixels, ask for the encoded size, then encode into a scratch
@@ -12,11 +12,16 @@
  * output against what the native build wrote to build/native/, byte for byte.
  * Printing the sizes would not have caught an argument list going stale.
  */
-const fs = require('fs');
-const path = require('path');
-const createReceipet = require(path.join(__dirname, '..', 'build', 'emcc', 'receipet.js'));
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const NATIVE = path.join(__dirname, '..', 'build', 'native');
+// The published package, imported exactly as a consumer would import it - so
+// what this checks against the native build is the artefact that ships.
+import createReceipet from '../packages/js/emscripten-port/dist/receipet.mjs';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const NATIVE = path.join(HERE, '..', 'build', 'native');
 const W = 128, H = 64;
 
 // The C side only writes pixels; rectangles and the like live out here.
@@ -67,41 +72,39 @@ function encode(M, call) {
   }
 }
 
-(async () => {
-  const M = await createReceipet();
+const M = await createReceipet();
 
-  // rcpt_image_new writes the image pointer through an out-parameter too
-  const slot = M._malloc(4);
-  if (M._rcpt_image_new(slot, W, H) !== 0) throw new Error('rcpt_image_new failed');
-  const img = M.getValue(slot, 'i32');
-  M._free(slot);
+// rcpt_image_new writes the image pointer through an out-parameter too
+const slot = M._malloc(4);
+if (M._rcpt_image_new(slot, W, H) !== 0) throw new Error('rcpt_image_new failed');
+const img = M.getValue(slot, 'i32');
+M._free(slot);
 
-  try {
-    draw(M, img);
-    if (M._rcpt_image_get_pixel(img, 0, 0) !== 1) throw new Error('pixel readback failed');
+try {
+  draw(M, img);
+  if (M._rcpt_image_get_pixel(img, 0, 0) !== 1) throw new Error('pixel readback failed');
 
-    // The same options examples/demo.c passes, in the same order.
-    const formats = {
-      escpos:  (job) => M._rcpt_enc_escpos(job, img, 0, 0),
-      escp:    (job) => M._rcpt_enc_escp(job, img, 0, 0),
-      tspl:    (job) => M._rcpt_enc_tspl(job, img, 0, 0, 0, 0, 1, 0),
-      cpcl:    (job) => M._rcpt_enc_cpcl(job, img, 0, 0, 203, 1, 0),
-      zpl:     (job) => M._rcpt_enc_zpl(job, img, 0, 0, 1, 0),
-      brother: (job) => M._rcpt_enc_brother(job, img, 0x0B, 38, 90, 0, 0),
-    };
+  // The same options examples/demo.c passes, in the same order.
+  const formats = {
+    escpos:  (job) => M._rcpt_enc_escpos(job, img, 0, 0),
+    escp:    (job) => M._rcpt_enc_escp(job, img, 0, 0),
+    tspl:    (job) => M._rcpt_enc_tspl(job, img, 0, 0, 0, 0, 1, 0),
+    cpcl:    (job) => M._rcpt_enc_cpcl(job, img, 0, 0, 203, 1, 0),
+    zpl:     (job) => M._rcpt_enc_zpl(job, img, 0, 0, 1, 0),
+    brother: (job) => M._rcpt_enc_brother(job, img, 0x0B, 38, 90, 0, 0),
+  };
 
-    let failures = 0;
-    for (const [name, call] of Object.entries(formats)) {
-      const bytes = Buffer.from(encode(M, call));
-      const ref = fs.readFileSync(path.join(NATIVE, `demo.${name}`));
-      const ok = bytes.equals(ref);
-      if (!ok) failures++;
-      console.log(`${name.padEnd(8)} ${String(bytes.length).padStart(6)} bytes  ` +
-                  (ok ? 'matches native' : `DIFFERS from native (${ref.length} bytes)`));
-    }
-    if (failures) throw new Error(`${failures} format(s) differ from the native build`);
-    console.log('emcc: all formats byte-identical to the native build');
-  } finally {
-    M._rcpt_image_free(img);
+  let failures = 0;
+  for (const [name, call] of Object.entries(formats)) {
+    const bytes = Buffer.from(encode(M, call));
+    const ref = fs.readFileSync(path.join(NATIVE, `demo.${name}`));
+    const ok = bytes.equals(ref);
+    if (!ok) failures++;
+    console.log(`${name.padEnd(8)} ${String(bytes.length).padStart(6)} bytes  ` +
+                (ok ? 'matches native' : `DIFFERS from native (${ref.length} bytes)`));
   }
-})();
+  if (failures) throw new Error(`${failures} format(s) differ from the native build`);
+  console.log('emcc: all formats byte-identical to the native build');
+} finally {
+  M._rcpt_image_free(img);
+}

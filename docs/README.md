@@ -16,7 +16,7 @@ disagreed.
 | [tspl.md](tspl.md) | SL43 and 4B-3044TA: a printer that lies about its resolution, and a silent 16 kB limit |
 | [escpos.md](escpos.md) | PT-390: the one that mostly just worked |
 | [design-decisions.md](design-decisions.md) | How the API shrank to twelve functions, and what each removal cost |
-| [packaging.md](packaging.md) | Python packaging and WASM build dead ends |
+| [packaging.md](packaging.md) | Python packaging and WASM build dead ends, and the four ways an npm package publishes cleanly but wrong |
 
 ## Status
 

@@ -1,0 +1,34 @@
+{
+  "name": "@mu-software/receipet",
+  "version": "0.0.0",
+  "description": "Monochrome image buffer with ESC/POS, ESC/P, TSPL, CPCL, ZPL and Brother QL output, compiled to WebAssembly",
+  "keywords": ["escpos", "escp", "tspl", "cpcl", "zpl", "brother-ql", "receipt", "label", "wasm"],
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/receipet.mjs",
+  "types": "./receipet.d.ts",
+  "exports": {
+    ".": {
+      "types": "./receipet.d.ts",
+      "default": "./dist/receipet.mjs"
+    }
+  },
+  "files": ["dist/receipet.mjs", "receipet.d.ts", "README.md"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MU-Software/receipet.git",
+    "directory": "packages/js/emscripten-port"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "scripts": {
+    "build": "make -C ../../.. wasm-emcc",
+    "test": "make -C ../../.. wasm-test-emcc"
+  }
+}

@@ -1,0 +1,66 @@
+# GITHUB_TOKEN is enough to publish, but only because package.json carries a
+# `repository` field; without it this fails with a 404 that names no cause.
+name: release
+
+on:
+  push:
+    branches: [main]
+    # Only what ends up in the artefact.  workflow_dispatch ignores this, so a
+    # release is still possible without touching one of them.
+    paths:
+      - "src/**"
+      - "include/**"
+      - "packages/js/**"
+      - "Makefile"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+env:
+  TZ: Asia/Seoul
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the release tag
+      packages: write
+
+    steps:
+      # Tags are the numbering, so a shallow clone would restart it at 1.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: version
+        run: echo "value=$(python3 .github/scripts/release_version.py)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@mu-software"
+
+      - name: Build and verify against the native build
+        run: make wasm-test-emcc
+
+      # Not committed: package.json keeps its 0.0.0 placeholder on main.
+      - name: Stamp the version
+        working-directory: packages/js/emscripten-port
+        run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
+
+      - name: What is about to be published
+        working-directory: packages/js/emscripten-port
+        run: npm publish --dry-run
+
+      # Before publishing, so that a publish that fails after the registry has
+      # accepted it does not leave the number free to be issued twice.
+      - name: Tag the release
+        run: |
+          git tag "v${{ steps.version.outputs.value }}"
+          git push origin "v${{ steps.version.outputs.value }}"
+
+      - name: Publish
+        working-directory: packages/js/emscripten-port
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

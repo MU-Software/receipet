@@ -16,6 +16,10 @@ __pycache__/
 .ruff_cache/
 python/receipet/_receipet.c
 
+# npm
+node_modules/
+*.tgz
+
 # editors and tooling
 .DS_Store
 compile_commands.json
