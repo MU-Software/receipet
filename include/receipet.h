@@ -31,7 +31,7 @@ extern "C" {
 /* constants                                                          */
 /* ------------------------------------------------------------------ */
 #define RCPT_VERSION_MAJOR 0
-#define RCPT_VERSION_MINOR 1
+#define RCPT_VERSION_MINOR 2
 #define RCPT_VERSION_PATCH 0
 
 /* Keeps stride * height inside 32 bits. */
@@ -184,6 +184,14 @@ typedef struct rcpt_brother_status {
 
 /* RCPT_ERR_ARG unless `len` is exactly RCPT_BROTHER_STATUS_LEN. */
 RCPT_API rcpt_result rcpt_parse_brother_status(rcpt_brother_status *out, const uint8_t *data, size_t len);
+
+/* The same parse as RCPT_BROTHER_STATUS_FIELDS uint32 values, for a binding
+ * that cannot see the struct.  `out` takes them in declaration order:
+ *
+ *   model, errors, media_width_mm, media_length_mm, media_type,
+ *   status_type, phase_type, phase_number, notification */
+#define RCPT_BROTHER_STATUS_FIELDS 9
+RCPT_API rcpt_result rcpt_parse_brother_status_u32(uint32_t *out, const uint8_t *data, size_t len);
 
 #ifdef __cplusplus
 } /* extern "C" */

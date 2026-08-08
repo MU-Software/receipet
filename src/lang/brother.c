@@ -138,3 +138,24 @@ rcpt_result rcpt_parse_brother_status(rcpt_brother_status *out, const uint8_t *d
     out->notification    = data[22];
     return RCPT_OK;
 }
+
+rcpt_result rcpt_parse_brother_status_u32(uint32_t *out, const uint8_t *data, size_t len) {
+    rcpt_brother_status st;
+    rcpt_result rc;
+
+    if (!out) return RCPT_ERR_ARG;
+
+    rc = rcpt_parse_brother_status(&st, data, len);
+    if (rc != RCPT_OK) return rc;
+
+    out[0] = st.model;
+    out[1] = st.errors;
+    out[2] = st.media_width_mm;
+    out[3] = st.media_length_mm;
+    out[4] = st.media_type;
+    out[5] = st.status_type;
+    out[6] = st.phase_type;
+    out[7] = st.phase_number;
+    out[8] = st.notification;
+    return RCPT_OK;
+}

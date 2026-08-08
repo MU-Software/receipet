@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "receipet"
-version = "0.1.0"
+version = "0.2.0"
 description = "Monochrome image buffer with ESC/POS, ESC/P, TSPL, CPCL, ZPL and Brother QL output"
 readme = "README.md"
 requires-python = ">=3.12"

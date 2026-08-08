@@ -5,6 +5,7 @@
 #   make wasm                  both WASM targets
 #   make wasm-emcc             the npm package's dist/  (docker: emscripten/emsdk)
 #   make wasm-wasi             build/wasi/receipet.wasm (docker: wasi-sdk)
+#   make js-constants          regenerate the npm package's constants.{mjs,d.ts}
 #   make wasm-test             run both WASM builds under Node
 #   make emscripten-port-pack  what `npm publish` would send, without sending it
 #   make version-check         receipet.h and pyproject.toml agree on the API
@@ -34,7 +35,7 @@ LIB     := build/libreceipet.a
 # attribute under __wasm__); the allocator does not, so name it explicitly.
 EMCC_EXPORTS := _malloc,_free
 
-.PHONY: all test clean wasm wasm-emcc wasm-wasi \
+.PHONY: all test clean wasm wasm-emcc wasm-wasi js-constants \
         wasm-test wasm-test-emcc wasm-test-wasi \
         emscripten-port-pack version-check \
         python python-test fmt lint
@@ -88,14 +89,33 @@ $(EMSCRIPTEN_PKG)/dist:
 # MODULARIZE + EXPORT_ES6 gives a factory as the .mjs default export.
 # SINGLE_FILE embeds the wasm as a data URI: a third more bytes, and nothing
 # for a bundler to resolve.
-wasm-emcc: | $(EMSCRIPTEN_PKG)/dist
+wasm-emcc: js-constants | $(EMSCRIPTEN_PKG)/dist
 	$(if $(DOCKER),$(DOCKER_RUN) $(EMSDK_IMAGE)) emcc $(WASM_CFLAGS) $(SRC) \
 	    -o $(EMSCRIPTEN_PKG)/dist/receipet.mjs \
 	    -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createReceipet \
 	    -sEXPORTED_FUNCTIONS=$(EMCC_EXPORTS) \
-	    -sEXPORTED_RUNTIME_METHODS=HEAPU8,ccall,cwrap,getValue,setValue \
+	    -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU32,ccall,cwrap,getValue,setValue \
 	    -sALLOW_MEMORY_GROWTH=1 -sFILESYSTEM=0 \
 	    -sSINGLE_FILE=1 -sENVIRONMENT=web,node
+
+# ---- generated JS constants ------------------------------------------------
+# Compiled by emcc, not $(CC): the layout has to be wasm32's.  Both outputs are
+# committed, so `npm install` needs no emsdk - which is also why they are not
+# in `clean`.
+JS_CONST := $(EMSCRIPTEN_PKG)/constants
+
+js-constants: $(JS_CONST).mjs $(JS_CONST).d.ts
+
+build/gen_js_constants.js: tools/gen_js_constants.c include/receipet.h | build
+	$(if $(DOCKER),$(DOCKER_RUN) $(EMSDK_IMAGE)) emcc $(WASM_CFLAGS) \
+	    tools/gen_js_constants.c -o $@ \
+	    -sSINGLE_FILE=1 -sENVIRONMENT=node
+
+$(JS_CONST).mjs: build/gen_js_constants.js
+	$(NODE) $< mjs > $@
+
+$(JS_CONST).d.ts: build/gen_js_constants.js
+	$(NODE) $< dts > $@
 
 # A reactor module (no main), so the host calls the exports directly.
 wasm-wasi: | build/wasi
@@ -163,7 +183,7 @@ python-test: python
 # C style lives in .clang-format, Python style in pyproject.toml.  The same
 # two tools run from .pre-commit-config.yaml; `uvx pre-commit install` wires
 # them to the commit hook.
-C_SOURCES := $(wildcard include/*.h src/*.c src/*.h src/lang/*.c examples/*.c tests/*.c)
+C_SOURCES := $(wildcard include/*.h src/*.c src/*.h src/lang/*.c examples/*.c tests/*.c tools/*.c)
 
 PY_SOURCES := $(PY_PKG)/ tools/ .github/scripts/
 

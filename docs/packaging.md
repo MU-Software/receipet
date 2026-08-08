@@ -132,13 +132,70 @@ directory, so the thing compared against the native build byte for byte is the
 thing that ships.  `make wasm-test-emcc` is that check alone, so a release does
 not pull the wasi-sdk image for a build it does not publish.
 
-### Constants are not exported
+### Constants are generated, not copied
 
-`RCPT_F_*`, `RCPT_OK`, `RCPT_BROTHER_*` are absent from the JS package.  The
-wasm module exports functions, not values, so anything else would be a second
-copy of the header with nothing checking it — the drift that
-`check_cdef_matches_header()` exists to catch on the Python side.  A wrapper
-module with the constants in it would need the same kind of check first.
+The wasm module exports functions, not values: a `#define` leaves nothing
+behind to put in an export table, and a struct offset has no spelling in
+TypeScript.  So `RCPT_F_*`, `RCPT_OK`, `RCPT_BROTHER_*` and the layout of
+`rcpt_image` / `rcpt_buf` / `rcpt_brother_status` were at first simply absent
+from the JS package, and every consumer copied them out of the header by hand
+— about forty lines of it in the first real one.  Nothing checked the copy.
+Changing the header broke nobody's build and nobody's types; it just read the
+wrong bytes at runtime.  That is the drift `check_cdef_matches_header()` exists
+to catch on the Python side, where CFFI parses the real header and the question
+never comes up.
+
+The fix is the same shape as CFFI's: let a compiler read the header.
+`tools/gen_js_constants.c` includes `receipet.h`, prints the values and
+`offsetof`s to stdout, and `make js-constants` runs it twice — once for
+`constants.mjs`, once for `constants.d.ts` — so each constant is named once, in
+C.  The package exposes them on the `./constants` subpath.
+
+**It is compiled by `emcc`, not `$(CC)`.**  Half of what it reports depends on
+the target:
+
+| | native 64-bit | wasm32 |
+| --- | --- | --- |
+| `offsetof(rcpt_image, data)` | 16 | **12** |
+| `sizeof(rcpt_image)` | 24 | **16** |
+| `sizeof(rcpt_buf)` | 24 | **12** |
+| `sizeof(rcpt_brother_status)` | 14 | 14 |
+
+Pointers and `size_t` are 4 bytes under wasm32 and 8 natively, which moves the
+first three.  `rcpt_brother_status` is `uint8`/`uint16` throughout and is the
+same either way — which is worth knowing, because it is the one that looks
+target-dependent and is not, so a comment claiming otherwise is easy to write.
+
+Generation alone is not enough: a wrong offset does not fail, it reads the
+neighbouring field and returns a plausible number.  So `examples/node_demo.mjs`
+uses the generated constants for all of its own arithmetic and parses a Brother
+status reply whose every field differs, checking each one lands where the
+constants say.  That runs in `make wasm-test-emcc`, which is what the release
+workflow runs.
+
+One struct did not have to be described at all in the end.
+`rcpt_parse_brother_status_u32()` writes the nine status fields as `uint32`s in
+declaration order, so the JS caller reads one `HEAPU32` window — no offsets,
+and no masking off the sign extension `getValue(_, 'i8')` brings with it.  The
+struct form stays for the CFFI port, which sees the layout for free.  Adding a
+function to a C API to suit one binding is worth being suspicious of; what made
+it defensible is that it is a wrapper over the same parse rather than a second
+one, and that the ordering it introduces is checked in both test suites.
+
+Both generated files are committed.  `npm install` then needs no emsdk, and a
+`git diff` shows what a header change did to the JS surface.  They are
+deliberately left out of `make clean`, which would otherwise delete tracked
+files.
+
+The `.d.ts` is hand-written for the same reason `cdef()` is: `emcc --emit-tsd`
+describes embind, and this is plain C exports driven by pointer arithmetic, so
+it has nothing to say.  Unlike the cffi case the compiler *does* help here — a
+wrong argument count is a `tsc` error at the call site, which was checked by
+introducing one.
+
+Its constants are declared `number`, not literal types.  `export const F_RAW: 1`
+is not a *fresh* literal type, so `let flags = F_RAW; flags |= F_INVERT;` would
+not compile — which is the one thing flags are for.
 
 The `.d.ts` is hand-written for the same reason `cdef()` is: `emcc --emit-tsd`
 describes embind, and this is plain C exports driven by pointer arithmetic, so

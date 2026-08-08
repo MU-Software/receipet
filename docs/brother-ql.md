@@ -103,6 +103,16 @@ Confirmed on hardware: with the cover open,
 
 and 0x0000 with it closed.
 
+There are two ways to read the parse, and they are the same parse:
+`rcpt_parse_brother_status()` fills the struct, and
+`rcpt_parse_brother_status_u32()` writes the same fields as
+`RCPT_BROTHER_STATUS_FIELDS` uint32 values in declaration order.  The second
+exists for bindings that cannot see a struct layout — the JS port would
+otherwise need nine hand-written offsets and a mask on every 8-bit read.  It is
+a wrapper, so the byte offsets above are still written down once; the test
+suite checks the two against each other field by field, since a swapped pair
+would otherwise surface as a plausible wrong number at a caller.
+
 **ROSA's `escp.py` parser is broken** and should not be copied.  It reads the
 two bytes big-endian, so `data[8]` lands in the high byte, while its own flag
 table assumes the opposite — an open cover reads as 0x0010, which its table

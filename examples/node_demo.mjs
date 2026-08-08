@@ -11,6 +11,9 @@
  * It draws the same card as examples/demo.c and compares every encoder's
  * output against what the native build wrote to build/native/, byte for byte.
  * Printing the sizes would not have caught an argument list going stale.
+ *
+ * It also checks the generated constants: a wrong offset reads a neighbouring
+ * field rather than failing, so nothing else in the build would notice.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 // The published package, imported exactly as a consumer would import it - so
 // what this checks against the native build is the artefact that ships.
 import createReceipet from '../packages/js/emscripten-port/dist/receipet.mjs';
+import * as RCPT from '../packages/js/emscripten-port/constants.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NATIVE = path.join(HERE, '..', 'build', 'native');
@@ -48,20 +52,24 @@ function draw(M, img) {
   }
 }
 
-const ERRORS = { '-1': 'invalid argument', '-2': 'out of memory', '-3': 'internal error' };
+const ERRORS = {
+  [RCPT.ERR_ARG]: 'invalid argument',
+  [RCPT.ERR_NOMEM]: 'out of memory',
+  [RCPT.ERR_INTERNAL]: 'internal error',
+};
 
 // Every encoder takes a rcpt_buf* to fill and returns a result code, so the
-// 12-byte block below is an ordinary first argument - {data, cap, len} - and
-// the same pointer goes straight to rcpt_buf_free.
+// block below is an ordinary first argument - {data, cap, len} - and the same
+// pointer goes straight to rcpt_buf_free.
 function encode(M, call) {
-  const buf = M._malloc(12);
+  const buf = M._malloc(RCPT.BUF_SIZEOF);
   try {
     const rc = call(buf);
     try {
-      if (rc !== 0) throw new Error(`encode failed: ${ERRORS[rc] || rc}`);
-      const data = M.getValue(buf, 'i32');
-      const cap = M.getValue(buf + 4, 'i32');
-      const len = M.getValue(buf + 8, 'i32');
+      if (rc !== RCPT.OK) throw new Error(`encode failed: ${ERRORS[rc] || rc}`);
+      const data = M.getValue(buf + RCPT.BUF_DATA_OFFSET, 'i32');
+      const cap = M.getValue(buf + RCPT.BUF_CAP_OFFSET, 'i32');
+      const len = M.getValue(buf + RCPT.BUF_LEN_OFFSET, 'i32');
       // len === cap on success; clamping costs nothing and cannot be wrong
       return M.HEAPU8.slice(data, data + Math.min(len, cap)); // copy: the heap moves
     } finally {
@@ -72,17 +80,110 @@ function encode(M, call) {
   }
 }
 
+// A reply whose every field differs, so a wrong offset cannot land on a
+// matching value.  Same bytes as test_brother_status() in tests/.
+function checkBrotherStatus(M) {
+  const reply = new Uint8Array(RCPT.BROTHER_STATUS_LEN);
+  reply[4] = 0x37;  // QL-720NW
+  reply[8] = 0x01;  // error information 1: no media
+  reply[9] = 0x10;  // error information 2: cover open
+  reply[10] = 62;   // media width, mm
+  reply[11] = RCPT.BROTHER_MEDIA_CONTINUOUS;
+  reply[17] = 0;    // continuous tape has no length
+  reply[18] = 0x00; // reply to status request
+  reply[19] = 0x01; // printing
+  reply[21] = 0x0a; // phase number, big endian
+  reply[22] = 0x03; // cooling started
+
+  const raw = M._malloc(reply.length);
+  const st = M._malloc(RCPT.BROTHER_STATUS_SIZEOF);
+  try {
+    M.HEAPU8.set(reply, raw);
+    if (M._rcpt_parse_brother_status(st, raw, reply.length) !== RCPT.OK)
+      throw new Error('rcpt_parse_brother_status rejected a well-formed reply');
+
+    const u8 = (off) => M.HEAPU8[st + off];
+    const u16 = (off) => M.getValue(st + off, 'i16') & 0xffff; // getValue sign-extends
+    const errors = u16(RCPT.BROTHER_STATUS_ERRORS_OFFSET);
+
+    const expected = {
+      model: [u8(RCPT.BROTHER_STATUS_MODEL_OFFSET), 0x37],
+      media_width_mm: [u8(RCPT.BROTHER_STATUS_MEDIA_WIDTH_MM_OFFSET), 62],
+      media_length_mm: [u8(RCPT.BROTHER_STATUS_MEDIA_LENGTH_MM_OFFSET), 0],
+      media_type: [u8(RCPT.BROTHER_STATUS_MEDIA_TYPE_OFFSET), RCPT.BROTHER_MEDIA_CONTINUOUS],
+      status_type: [u8(RCPT.BROTHER_STATUS_STATUS_TYPE_OFFSET), 0x00],
+      phase_type: [u8(RCPT.BROTHER_STATUS_PHASE_TYPE_OFFSET), 0x01],
+      phase_number: [u16(RCPT.BROTHER_STATUS_PHASE_NUMBER_OFFSET), 10],
+      notification: [u8(RCPT.BROTHER_STATUS_NOTIFICATION_OFFSET), 0x03],
+      // the two error bytes must not be swapped
+      no_media_bit: [errors & RCPT.BROTHER_ERR_NO_MEDIA ? 1 : 0, 1],
+      cover_open_bit: [errors & RCPT.BROTHER_ERR_COVER_OPEN ? 1 : 0, 1],
+      replace_media_bit: [errors & RCPT.BROTHER_ERR_REPLACE_MEDIA ? 1 : 0, 0],
+    };
+
+    for (const [field, [got, want]] of Object.entries(expected))
+      if (got !== want) throw new Error(`brother status ${field}: got ${got}, expected ${want}`);
+
+    // A short reply is not a status, and the length constant is what says so.
+    if (M._rcpt_parse_brother_status(st, raw, reply.length - 1) !== RCPT.ERR_ARG)
+      throw new Error('a short reply was accepted as a status');
+
+    // The flat form, which is what a JS caller should use, against the struct.
+    const vals = M._malloc(RCPT.BROTHER_STATUS_FIELDS * 4);
+    try {
+      if (M._rcpt_parse_brother_status_u32(vals, raw, reply.length) !== RCPT.OK)
+        throw new Error('rcpt_parse_brother_status_u32 rejected a well-formed reply');
+
+      const base = vals >>> 2; // HEAPU32 is indexed in words
+      const flat = M.HEAPU32.subarray(base, base + RCPT.BROTHER_STATUS_FIELDS);
+      const [model, err, widthMm, lengthMm, mediaType,
+             statusType, phaseType, phaseNumber, notification] = flat;
+
+      const sameAsStruct = {
+        model: [model, expected.model[1]],
+        errors: [err, errors],
+        media_width_mm: [widthMm, expected.media_width_mm[1]],
+        media_length_mm: [lengthMm, expected.media_length_mm[1]],
+        media_type: [mediaType, expected.media_type[1]],
+        status_type: [statusType, expected.status_type[1]],
+        phase_type: [phaseType, expected.phase_type[1]],
+        phase_number: [phaseNumber, expected.phase_number[1]],
+        notification: [notification, expected.notification[1]],
+      };
+      for (const [field, [got, want]] of Object.entries(sameAsStruct))
+        if (got !== want) throw new Error(`u32 status ${field}: got ${got}, expected ${want}`);
+    } finally {
+      M._free(vals);
+    }
+  } finally {
+    M._free(st);
+    M._free(raw);
+  }
+  console.log('brother  status matches the generated offsets, both forms agree');
+}
+
 const M = await createReceipet();
 
 // rcpt_image_new writes the image pointer through an out-parameter too
 const slot = M._malloc(4);
-if (M._rcpt_image_new(slot, W, H) !== 0) throw new Error('rcpt_image_new failed');
+if (M._rcpt_image_new(slot, W, H) !== RCPT.OK) throw new Error('rcpt_image_new failed');
 const img = M.getValue(slot, 'i32');
 M._free(slot);
 
 try {
+  // The header's public fields, read through the generated offsets.
+  const header = {
+    width: [M.getValue(img + RCPT.IMAGE_WIDTH_OFFSET, 'i32'), W],
+    height: [M.getValue(img + RCPT.IMAGE_HEIGHT_OFFSET, 'i32'), H],
+    stride: [M.getValue(img + RCPT.IMAGE_STRIDE_OFFSET, 'i32'), (W + 7) >> 3],
+  };
+  for (const [field, [got, want]] of Object.entries(header))
+    if (got !== want) throw new Error(`rcpt_image ${field}: got ${got}, expected ${want}`);
+
   draw(M, img);
   if (M._rcpt_image_get_pixel(img, 0, 0) !== 1) throw new Error('pixel readback failed');
+
+  checkBrotherStatus(M);
 
   // The same options examples/demo.c passes, in the same order.
   const formats = {

@@ -11,6 +11,7 @@ on:
       - "src/**"
       - "include/**"
       - "packages/js/**"
+      - "tools/gen_js_constants.c"
       - "Makefile"
       - ".github/workflows/release.yml"
   workflow_dispatch:

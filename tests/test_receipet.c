@@ -322,6 +322,30 @@ static void test_brother_status(void) {
     CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply) - 1) == RCPT_ERR_ARG);
     CHECK(rcpt_parse_brother_status(&st, NULL, sizeof(reply)) == RCPT_ERR_ARG);
     CHECK(rcpt_parse_brother_status(NULL, reply, sizeof(reply)) == RCPT_ERR_ARG);
+
+    /* Field for field against the struct: a swapped pair shows up here rather
+     * than at a caller. */
+    {
+        uint32_t vals[RCPT_BROTHER_STATUS_FIELDS];
+
+        CHECK(rcpt_parse_brother_status_u32(vals, reply, sizeof(reply)) == RCPT_OK);
+        CHECK(vals[0] == st.model);
+        CHECK(vals[1] == st.errors);
+        CHECK(vals[2] == st.media_width_mm);
+        CHECK(vals[3] == st.media_length_mm);
+        CHECK(vals[4] == st.media_type);
+        CHECK(vals[5] == st.status_type);
+        CHECK(vals[6] == st.phase_type);
+        CHECK(vals[7] == st.phase_number);
+        CHECK(vals[8] == st.notification);
+
+        /* uint32 out: nothing truncated or sign extended */
+        CHECK(vals[1] == (uint32_t)(RCPT_BROTHER_ERR_NO_MEDIA | RCPT_BROTHER_ERR_COVER_OPEN));
+
+        CHECK(rcpt_parse_brother_status_u32(vals, reply, sizeof(reply) - 1) == RCPT_ERR_ARG);
+        CHECK(rcpt_parse_brother_status_u32(vals, NULL, sizeof(reply)) == RCPT_ERR_ARG);
+        CHECK(rcpt_parse_brother_status_u32(NULL, reply, sizeof(reply)) == RCPT_ERR_ARG);
+    }
 }
 
 static void test_cpcl_zpl(void) {

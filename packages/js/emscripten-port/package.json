@@ -11,9 +11,13 @@
     ".": {
       "types": "./receipet.d.ts",
       "default": "./dist/receipet.mjs"
+    },
+    "./constants": {
+      "types": "./constants.d.ts",
+      "default": "./constants.mjs"
     }
   },
-  "files": ["dist/receipet.mjs", "receipet.d.ts", "README.md"],
+  "files": ["dist/receipet.mjs", "receipet.d.ts", "constants.mjs", "constants.d.ts", "README.md"],
   "sideEffects": false,
   "engines": {
     "node": ">=18"

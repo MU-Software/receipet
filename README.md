@@ -68,9 +68,10 @@ predictable.
 | `rcpt_enc_zpl(&buf, img, x, y, copies, flags)` | Zebra label printers |
 | `rcpt_enc_brother(&buf, img, media, w_mm, l_mm, offset, flags)` | Brother QL, raster mode |
 | `rcpt_parse_brother_status(&st, data, len)` | decode a Brother QL status reply |
+| `rcpt_parse_brother_status_u32(vals, data, len)` | the same, as nine `uint32`s, for bindings without the struct |
 | `rcpt_buf_free(&buf)` | release the bytes, and zero the struct |
 
-That is the whole public surface: thirteen functions and four types —
+That is the whole public surface: fourteen functions and four types —
 `rcpt_image`, `rcpt_buf`, `rcpt_brother_status` and the `rcpt_result` codes.
 
 **Results.** Anything that can fail returns a `rcpt_result` — `RCPT_OK`,
@@ -192,6 +193,10 @@ is how you know it is complete — and hand them to
 type, and the error bits — which is exactly what the encoder wants for its
 `media_type`, `width_mm` and `length_mm`. Model code `0x41` is a QL-820NWB.
 
+`rcpt_parse_brother_status_u32()` is the same parse writing
+`RCPT_BROTHER_STATUS_FIELDS` `uint32`s in the struct's declaration order,
+for a binding that cannot see a struct layout — the WASM one, in practice.
+
 Media setup (TSPL `SIZE`/`GAP`/`DENSITY`, ZPL `^PW`/`^LL`, ESC/POS code pages)
 is deliberately not emitted — it depends on the installed stock, and belongs in
 the job you send around the image.
@@ -273,7 +278,7 @@ make version-check          # receipet.h and pyproject.toml agree
 They answer different questions, so they are not kept in step.
 
 **The API version** — `RCPT_VERSION_*` in `include/receipet.h`, repeated in
-`pyproject.toml`, `0.1.0` today. It describes the C API, a human changes it,
+`pyproject.toml`, `0.2.0` today. It describes the C API, a human changes it,
 and it is the only version a C consumer can see. `tools/api_version.py`, via
 `make version-check`, keeps the two copies together.
 
