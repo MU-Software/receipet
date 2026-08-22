@@ -234,6 +234,15 @@ static void test_tspl(void) {
     CHECK(memcmp(out + 21, "BITMAP 0,6,2,1,0,", 17) == 0);
     CHECK(out[38] == 0xFF && out[39] == 0xFF); /* row 1 is blank -> all ink-off */
 
+    /* Every band's y coordinate must remain representable as int32_t. */
+    CHECK(rcpt_enc_tspl(&job, img, 0, INT32_MAX - 1, 0, 1, 1, RCPT_F_RAW) == RCPT_OK);
+    rcpt_buf_free(&job);
+
+    job.data = (uint8_t *)1;
+    job.cap = job.len = 12345;
+    CHECK(rcpt_enc_tspl(&job, img, 0, INT32_MAX, 0, 1, 1, RCPT_F_RAW) == RCPT_ERR_ARG);
+    CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
+
     rcpt_image_free(img);
 }
 
@@ -388,6 +397,12 @@ static void test_cpcl_zpl(void) {
     n      = take(&job, (uint8_t *)out, sizeof(out) - 1);
     out[n] = '\0';
     CHECK(strcmp(out, "EG 2 2 0 0 FFAA0000\r\n") == 0);
+
+    /* Label height is computed without overflowing an int32_t y coordinate. */
+    CHECK(rcpt_enc_cpcl(&job, img, 0, INT32_MAX, 203, 1, 0) == RCPT_OK);
+    n      = take(&job, (uint8_t *)out, sizeof(out) - 1);
+    out[n] = '\0';
+    CHECK(strcmp(out, "! 0 203 203 2147483649 1\r\nEG 2 2 0 2147483647 FFAA0000\r\nFORM\r\nPRINT\r\n") == 0);
 
     CHECK(rcpt_enc_zpl(&job, img, 30, 40, 1, RCPT_F_RAW) == RCPT_OK);
     n      = take(&job, (uint8_t *)out, sizeof(out) - 1);

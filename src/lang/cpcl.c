@@ -17,7 +17,7 @@ static void emit(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uin
     uint32_t res = dpi ? dpi : 203u;
 
     if (!raw) {
-        int32_t bottom = y + (int32_t)img->height;
+        int64_t bottom = (int64_t)y + img->height;
         rcpt_w_str(out, "! 0 ");
         rcpt_w_uint(out, res);
         rcpt_w_byte(out, ' ');
