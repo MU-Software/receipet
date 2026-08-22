@@ -392,7 +392,7 @@ the head, that runs out of room. Latin and digits stay readable well below it.
 ## Layout
 
 ```
-include/receipet.h    public API - thirteen functions and four types
+include/receipet.h    public API - fourteen functions and four types
 src/rcpt_image.c      image buffer + pixel ops
 src/rcpt_buf.c        the byte buffer and the entry check every encoder makes
 src/rcpt_internal.h   the buffer's cursor role, the two-pass contract

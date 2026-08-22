@@ -197,12 +197,6 @@ Its constants are declared `number`, not literal types.  `export const F_RAW: 1`
 is not a *fresh* literal type, so `let flags = F_RAW; flags |= F_INVERT;` would
 not compile — which is the one thing flags are for.
 
-The `.d.ts` is hand-written for the same reason `cdef()` is: `emcc --emit-tsd`
-describes embind, and this is plain C exports driven by pointer arithmetic, so
-it has nothing to say.  Unlike the cffi case the compiler *does* help here — a
-wrong argument count is a `tsc` error at the call site, which was checked by
-introducing one.
-
 ## Versions
 
 There are two, and they were deliberately split.

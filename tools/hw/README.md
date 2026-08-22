@@ -1,9 +1,10 @@
 # Hardware harness
 
 Scripts used to verify the encoders against real printers over USB.  Not part
-of the library or its build; delete if the printers go away.
+of the library or its build; delete if the printers go away.  Supply PyUSB for
+an invocation, for example:
 
-    uv run --with pyusb python -c "...")
+    uv run --with pyusb python tools/hw/query.py 2aaf 9006
 
 - `usbio.py`   claim a USB printer-class device, bulk write, read a fixed reply
 - `pattern.py` full-label test card: frame, corner L marks, diagonals,
