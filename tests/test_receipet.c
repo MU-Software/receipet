@@ -280,6 +280,30 @@ static void test_brother(void) {
     CHECK(out[n - 1] == 0x1A);                                               /* print and feed */
 
     rcpt_image_free(img);
+
+    /* The fixed-width head must not silently discard pixels. */
+    CHECK(rcpt_image_new(&img, 720, 1) == RCPT_OK);
+    if (img) {
+        CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 62, 29, 0, RCPT_F_RAW) == RCPT_OK);
+        rcpt_buf_free(&job);
+        rcpt_image_free(img);
+    }
+
+    CHECK(rcpt_image_new(&img, 721, 1) == RCPT_OK);
+    if (img) {
+        job.data = (uint8_t *)1;
+        job.cap = job.len = 12345;
+        CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 62, 29, 0, RCPT_F_RAW) == RCPT_ERR_ARG);
+        CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
+        rcpt_image_free(img);
+    }
+
+    CHECK(rcpt_image_new(&img, 1, 1) == RCPT_OK);
+    if (img) {
+        CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 62, 29, 720, RCPT_F_RAW) == RCPT_ERR_ARG);
+        CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
+        rcpt_image_free(img);
+    }
 }
 
 /* A 32-byte reply as a QL-820NWB sends it. */

@@ -40,6 +40,7 @@
 #define SUB 0x1A
 
 #define RASTER_BYTES 90 /* 720 dots: QL-500 through QL-820. The QL-1050/1060N head is wider */
+#define RASTER_DOTS  (RASTER_BYTES * 8u)
 
 static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8_t width_mm, uint8_t length_mm, uint32_t offset, uint32_t flags) {
     int raw    = (flags & RCPT_F_RAW) != 0;
@@ -96,8 +97,8 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8
 
         for (x = 0; x < img->width; x++) {
             uint32_t d = offset + x;
-            if (d >= RASTER_BYTES * 8u) break; /* past the head */
-            d = RASTER_BYTES * 8u - 1u - d;    /* left-referenced dot -> bit, the line runs right to left */
+            if (d >= RASTER_DOTS) break; /* past the head */
+            d = RASTER_DOTS - 1u - d;    /* left-referenced dot -> bit, the line runs right to left */
             if (rcpt_image_get_pixel(img, (int32_t)x, (int32_t)y)) {
                 if (invert)
                     line[d >> 3] &= (uint8_t)~(0x80u >> (d & 7u));
@@ -117,6 +118,10 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8
 
 rcpt_result rcpt_enc_brother(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8_t width_mm, uint8_t length_mm, uint32_t offset,
                              uint32_t flags) {
+    rcpt_result checked = rcpt_enc_start(out, img);
+    if (checked != RCPT_OK) return checked;
+    if (offset > RASTER_DOTS || img->width > RASTER_DOTS - offset) return RCPT_ERR_ARG;
+
     RCPT_ENCODE(img, media_type, width_mm, length_mm, offset, flags);
 }
 
