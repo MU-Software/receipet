@@ -24,3 +24,4 @@ node_modules/
 .DS_Store
 compile_commands.json
 .cache/
+.vscode/
