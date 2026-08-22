@@ -447,8 +447,11 @@ static rcpt_result as_cpcl(rcpt_buf *o, const rcpt_image *i) {
 static rcpt_result as_zpl(rcpt_buf *o, const rcpt_image *i) {
     return rcpt_enc_zpl(o, i, 0, 0, 1, 0);
 }
+static rcpt_result as_brother(rcpt_buf *o, const rcpt_image *i) {
+    return rcpt_enc_brother(o, i, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 0, 0);
+}
 
-static const encode_fn ENCODERS[] = { as_escpos, as_escp, as_tspl, as_cpcl, as_zpl };
+static const encode_fn ENCODERS[] = { as_escpos, as_escp, as_tspl, as_cpcl, as_zpl, as_brother };
 #define ENCODER_COUNT ((int)(sizeof ENCODERS / sizeof ENCODERS[0]))
 
 /* The measuring pass and the filling pass must agree exactly, for every
