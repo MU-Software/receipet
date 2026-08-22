@@ -20,7 +20,11 @@ env:
   TZ: Asia/Seoul
 
 jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write # to push the release tag
