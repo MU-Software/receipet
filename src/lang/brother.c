@@ -126,7 +126,12 @@ rcpt_result rcpt_enc_brother(rcpt_buf *out, const rcpt_image *img, uint8_t media
 }
 
 rcpt_result rcpt_parse_brother_status(rcpt_brother_status *out, const uint8_t *data, size_t len) {
-    if (!out || !data) return RCPT_ERR_ARG;
+    rcpt_brother_status empty = { 0 };
+
+    if (!out) return RCPT_ERR_ARG;
+    *out = empty;
+
+    if (!data) return RCPT_ERR_ARG;
     if (len != RCPT_BROTHER_STATUS_LEN) return RCPT_ERR_ARG;
 
     out->model = data[4];
@@ -147,8 +152,11 @@ rcpt_result rcpt_parse_brother_status(rcpt_brother_status *out, const uint8_t *d
 rcpt_result rcpt_parse_brother_status_u32(uint32_t *out, const uint8_t *data, size_t len) {
     rcpt_brother_status st;
     rcpt_result rc;
+    uint32_t i;
 
     if (!out) return RCPT_ERR_ARG;
+    for (i = 0; i < RCPT_BROTHER_STATUS_FIELDS; i++)
+        out[i] = 0;
 
     rc = rcpt_parse_brother_status(&st, data, len);
     if (rc != RCPT_OK) return rc;

@@ -351,15 +351,11 @@ static void test_brother_status(void) {
     CHECK((st.errors & RCPT_BROTHER_ERR_COVER_OPEN) != 0);
     CHECK((st.errors & RCPT_BROTHER_ERR_REPLACE_MEDIA) == 0);
 
-    /* a short or absent reply is not a status */
-    CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply) - 1) == RCPT_ERR_ARG);
-    CHECK(rcpt_parse_brother_status(&st, NULL, sizeof(reply)) == RCPT_ERR_ARG);
-    CHECK(rcpt_parse_brother_status(NULL, reply, sizeof(reply)) == RCPT_ERR_ARG);
-
     /* Field for field against the struct: a swapped pair shows up here rather
      * than at a caller. */
     {
         uint32_t vals[RCPT_BROTHER_STATUS_FIELDS];
+        uint32_t i;
 
         CHECK(rcpt_parse_brother_status_u32(vals, reply, sizeof(reply)) == RCPT_OK);
         CHECK(vals[0] == st.model);
@@ -375,10 +371,28 @@ static void test_brother_status(void) {
         /* uint32 out: nothing truncated or sign extended */
         CHECK(vals[1] == (uint32_t)(RCPT_BROTHER_ERR_NO_MEDIA | RCPT_BROTHER_ERR_COVER_OPEN));
 
+        for (i = 0; i < RCPT_BROTHER_STATUS_FIELDS; i++)
+            vals[i] = UINT32_MAX;
         CHECK(rcpt_parse_brother_status_u32(vals, reply, sizeof(reply) - 1) == RCPT_ERR_ARG);
+        for (i = 0; i < RCPT_BROTHER_STATUS_FIELDS; i++)
+            CHECK(vals[i] == 0);
+
+        vals[0] = UINT32_MAX;
         CHECK(rcpt_parse_brother_status_u32(vals, NULL, sizeof(reply)) == RCPT_ERR_ARG);
+        CHECK(vals[0] == 0);
         CHECK(rcpt_parse_brother_status_u32(NULL, reply, sizeof(reply)) == RCPT_ERR_ARG);
     }
+
+    /* A failed parse leaves no stale status behind. */
+    memset(&st, 0xFF, sizeof(st));
+    CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply) - 1) == RCPT_ERR_ARG);
+    CHECK(st.model == 0 && st.errors == 0 && st.media_width_mm == 0 && st.media_length_mm == 0 && st.media_type == 0);
+    CHECK(st.status_type == 0 && st.phase_type == 0 && st.phase_number == 0 && st.notification == 0);
+
+    st.model = 1;
+    CHECK(rcpt_parse_brother_status(&st, NULL, sizeof(reply)) == RCPT_ERR_ARG);
+    CHECK(st.model == 0);
+    CHECK(rcpt_parse_brother_status(NULL, reply, sizeof(reply)) == RCPT_ERR_ARG);
 }
 
 static void test_cpcl_zpl(void) {
