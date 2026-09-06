@@ -144,4 +144,5 @@ plain argument defaulting to 720 is the shape to reach for when one turns up —
 ## Still unverified
 
 Continuous tape (only die-cut was tested), `RCPT_F_BROTHER_NO_CUT`, and every
-error bit except cover-open.
+error bit except cover-open.  The continuous path emits Brother's documented
+35-dot minimum feed margin; die-cut keeps the hardware-tested zero margin.

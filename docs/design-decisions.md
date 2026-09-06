@@ -1,4 +1,4 @@
-# How the API got to thirteen functions
+# How the API got to fourteen functions
 
 The first draft had a writer object, an options struct, a format registry and
 a dispatch function.  Everything below was removed, and the reason each one

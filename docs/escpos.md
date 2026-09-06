@@ -2,8 +2,8 @@
 
 Verified 2026-08-06.  USB `0483:5720`, which enumerates as manufacturer
 `GEZHI`, product `micro-printer`.  Bought from AliExpress; the protocol notes
-it was set up from live at
-`/Users/musoftware/tmp/label_printer_decompile/PT-390_프로토콜_스펙.md`.
+were assembled during that session from live USB traffic and the printer's
+companion app.
 
 The least troublesome of the four.
 
