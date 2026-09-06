@@ -49,10 +49,11 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8
     uint32_t y;
 
     if (!raw) {
+        int no_cut        = (flags & RCPT_F_BROTHER_NO_CUT) != 0;
         uint8_t mode[4]   = { ESC, 'i', 'a', 1 };
         uint8_t every[4]  = { ESC, 'i', 'A', 1 };
-        uint8_t end[4]    = { ESC, 'i', 'K', 0x08 };
-        uint8_t margin[5] = { ESC, 'i', 'd', 0, 0 };
+        uint8_t end[4]    = { ESC, 'i', 'K', no_cut ? 0x00u : 0x08u };
+        uint8_t margin[5] = { ESC, 'i', 'd', media_type == RCPT_BROTHER_MEDIA_CONTINUOUS ? 35u : 0u, 0 };
         uint8_t info[13];
         uint32_t i;
 
@@ -80,7 +81,7 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8
         rcpt_w_byte(out, ESC);
         rcpt_w_byte(out, 'i');
         rcpt_w_byte(out, 'M');
-        rcpt_w_byte(out, (flags & RCPT_F_BROTHER_NO_CUT) ? 0x00u : 0x40u);
+        rcpt_w_byte(out, no_cut ? 0x00u : 0x40u);
         rcpt_w_bytes(out, every, sizeof(every));
         rcpt_w_bytes(out, end, sizeof(end));
         rcpt_w_bytes(out, margin, sizeof(margin));

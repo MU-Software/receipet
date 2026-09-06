@@ -334,7 +334,17 @@ static void test_brother(void) {
     CHECK(out[210] == RCPT_BROTHER_MEDIA_DIE_CUT);
     CHECK(out[211] == 38 && out[212] == 90);
     CHECK(out[213] == 2 && out[214] == 0 && out[215] == 0 && out[216] == 0); /* two lines */
+    CHECK(out[222] == 0x40);                                                 /* auto cut */
+    CHECK(out[230] == 0x08);                                                 /* cut at end */
+    CHECK(out[234] == 0 && out[235] == 0);                                   /* die-cut feed margin */
     CHECK(out[n - 1] == 0x1A);                                               /* print and feed */
+
+    CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_CONTINUOUS, 62, 0, 0, RCPT_F_BROTHER_NO_CUT) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(out[222] == 0x00);                /* auto cut disabled */
+    CHECK(out[230] == 0x00);                /* cut at end disabled too */
+    CHECK(out[234] == 35 && out[235] == 0); /* continuous-tape minimum */
+    CHECK(out[n - 1] == 0x1A);
 
     rcpt_image_free(img);
 
