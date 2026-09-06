@@ -44,9 +44,10 @@ void rcpt_w_str(rcpt_buf *b, const char *s);
 void rcpt_w_uint(rcpt_buf *b, uint32_t v);
 void rcpt_w_int(rcpt_buf *b, int32_t v);
 
-/* `invert` flips every bit on the way out. */
-void rcpt_w_bits(rcpt_buf *b, const uint8_t *p, size_t n, int invert);
-void rcpt_w_hex(rcpt_buf *b, const uint8_t *p, size_t n, int invert);
+/* `invert` flips image bits on the way out.  Padding past the image width is
+ * always kept at the format's non-printing polarity (`pad_one`). */
+void rcpt_w_image_bits(rcpt_buf *b, const rcpt_image *img, uint32_t y, uint32_t rows, int invert, int pad_one);
+void rcpt_w_image_hex(rcpt_buf *b, const rcpt_image *img, int invert, int pad_one);
 
 rcpt_result rcpt_enc_start(rcpt_buf *out, const rcpt_image *img);
 

@@ -32,7 +32,7 @@ static void emit(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uin
     rcpt_w_byte(out, ',');
     rcpt_w_uint(out, img->stride);
     rcpt_w_byte(out, ',');
-    rcpt_w_hex(out, img->data, (size_t)total, invert);
+    rcpt_w_image_hex(out, img, invert, 0);
     rcpt_w_str(out, "^FS\r\n");
 
     if (!raw) {

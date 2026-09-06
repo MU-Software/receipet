@@ -37,10 +37,11 @@ static void bands(rcpt_buf *out, const rcpt_image *img, uint8_t mode, int invert
                 uint8_t b = 0, j;
                 for (j = 0; j < 8; j++) {
                     uint32_t y = y0 + k * 8u + j;
-                    /* Rows past the bottom edge stay blank. */
-                    if (y < img->height && rcpt_image_get_pixel(img, (int32_t)x, (int32_t)y)) b |= (uint8_t)(0x80u >> j);
+                    /* Inversion applies only to image pixels.  Rows needed to
+                     * fill the last printer-head band stay blank. */
+                    if (y < img->height && (rcpt_image_get_pixel(img, (int32_t)x, (int32_t)y) != invert)) b |= (uint8_t)(0x80u >> j);
                 }
-                col[k] = invert ? (uint8_t)~b : b;
+                col[k] = b;
             }
             rcpt_w_bytes(out, col, nbytes);
         }

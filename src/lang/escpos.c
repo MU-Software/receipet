@@ -23,7 +23,7 @@ static void band(rcpt_buf *out, const rcpt_image *img, uint32_t y0, uint32_t row
     hdr[6] = (uint8_t)(rows & 0xFFu);        /* yL */
     hdr[7] = (uint8_t)(rows >> 8);           /* yH */
     rcpt_w_bytes(out, hdr, sizeof(hdr));
-    rcpt_w_bits(out, img->data + (size_t)y0 * img->stride, (size_t)rows * img->stride, invert);
+    rcpt_w_image_bits(out, img, y0, rows, invert, 0);
 }
 
 static void emit(rcpt_buf *out, const rcpt_image *img, uint32_t chunk_rows, uint32_t flags) {

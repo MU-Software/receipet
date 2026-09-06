@@ -28,7 +28,7 @@ static void band(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uin
     rcpt_w_byte(out, ',');
     rcpt_w_uint(out, mode);
     rcpt_w_byte(out, ',');
-    rcpt_w_bits(out, img->data + (size_t)y0 * img->stride, (size_t)rows * img->stride, invert);
+    rcpt_w_image_bits(out, img, y0, rows, invert, 1);
     rcpt_w_str(out, "\r\n");
 }
 

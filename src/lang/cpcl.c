@@ -38,7 +38,7 @@ static void emit(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uin
     rcpt_w_byte(out, ' ');
     rcpt_w_int(out, y);
     rcpt_w_byte(out, ' ');
-    rcpt_w_hex(out, img->data, (size_t)img->stride * img->height, invert);
+    rcpt_w_image_hex(out, img, invert, 0);
     rcpt_w_str(out, "\r\n");
 
     if (!raw) rcpt_w_str(out, "FORM\r\nPRINT\r\n");

@@ -112,6 +112,15 @@ static rcpt_image *make_sample(void) {
     return img;
 }
 
+/* A non-byte-aligned image exposes accidental inversion of row padding. */
+static rcpt_image *make_unaligned_sample(void) {
+    rcpt_image *img;
+
+    if (rcpt_image_new(&img, 12, 2) != RCPT_OK) return NULL;
+    rcpt_image_set_pixel(img, 0, 0, 1);
+    return img;
+}
+
 /* Copy an encoded job into a caller-owned scratch buffer so the assertions
  * below can stay simple; every call still goes through the real API. */
 static size_t take(rcpt_buf *job, uint8_t *out, size_t cap) {
@@ -161,6 +170,18 @@ static void test_escpos(void) {
     CHECK(out[n - 4] == 0x1D && out[n - 3] == 'V' && out[n - 2] == 66);
 
     rcpt_image_free(img);
+
+    img = make_unaligned_sample();
+    if (!img) {
+        CHECK(0);
+        return;
+    }
+    CHECK(rcpt_enc_escpos(&job, img, 0, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(n == 12);
+    CHECK(out[8] == 0x7F && out[9] == 0xF0);
+    CHECK(out[10] == 0xFF && out[11] == 0xF0);
+    rcpt_image_free(img);
 }
 
 static void test_escp(void) {
@@ -195,6 +216,15 @@ static void test_escp(void) {
     CHECK(out[2] == 39);
     CHECK(out[5] == 0x80 && out[6] == 0x00 && out[7] == 0x00);
 
+    rcpt_image_free(img);
+
+    CHECK(rcpt_image_new(&img, 2, 3) == RCPT_OK);
+    if (!img) return;
+    rcpt_image_set_pixel(img, 0, 0, 1);
+    CHECK(rcpt_enc_escp(&job, img, 0, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(n == 9);
+    CHECK(out[5] == 0x60 && out[6] == 0xE0); /* only the three image rows invert */
     rcpt_image_free(img);
 }
 
@@ -244,6 +274,18 @@ static void test_tspl(void) {
     CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
 
     rcpt_image_free(img);
+
+    img = make_unaligned_sample();
+    if (!img) {
+        CHECK(0);
+        return;
+    }
+    CHECK(rcpt_enc_tspl(&job, img, 0, 0, 0, 0, 1, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(n == sizeof(prefix) - 1 + 4 + 2);
+    CHECK(out[sizeof(prefix) - 1] == 0x80 && out[sizeof(prefix)] == 0x0F);
+    CHECK(out[sizeof(prefix) + 1] == 0x00 && out[sizeof(prefix) + 2] == 0x0F);
+    rcpt_image_free(img);
 }
 
 static void test_brother(void) {
@@ -269,6 +311,12 @@ static void test_brother(void) {
     CHECK(out[3 + 89] == 0xFF && out[3 + 88] == 0x55);
     CHECK(out[3 + 87] == 0x00); /* the rest of the line is blank */
     CHECK(out[3 + 90] == 'g');  /* second line follows */
+
+    CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 0, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    n = take(&job, out, sizeof(out));
+    CHECK(out[3 + 89] == 0x00 && out[3 + 88] == 0xAA);
+    for (i = 0; i < 88; i++)
+        CHECK(out[3 + i] == 0x00); /* inversion cannot ink outside the image */
 
     /* offset shifts the image across the head, a whole byte at a time here */
     CHECK(rcpt_enc_brother(&job, img, RCPT_BROTHER_MEDIA_DIE_CUT, 38, 90, 8, RCPT_F_RAW) == RCPT_OK);
@@ -427,6 +475,24 @@ static void test_cpcl_zpl(void) {
     n      = take(&job, (uint8_t *)out, sizeof(out) - 1);
     out[n] = '\0';
     CHECK(strcmp(out, "^XA\r\n^FO30,40^GFA,4,4,2,FFAA0000^FS\r\n^PQ3\r\n^XZ\r\n") == 0);
+
+    rcpt_image_free(img);
+
+    img = make_unaligned_sample();
+    if (!img) {
+        CHECK(0);
+        return;
+    }
+
+    CHECK(rcpt_enc_cpcl(&job, img, 0, 0, 0, 1, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    n      = take(&job, (uint8_t *)out, sizeof(out) - 1);
+    out[n] = '\0';
+    CHECK(strcmp(out, "EG 2 2 0 0 7FF0FFF0\r\n") == 0);
+
+    CHECK(rcpt_enc_zpl(&job, img, 0, 0, 1, RCPT_F_RAW | RCPT_F_INVERT) == RCPT_OK);
+    n      = take(&job, (uint8_t *)out, sizeof(out) - 1);
+    out[n] = '\0';
+    CHECK(strcmp(out, "^FO0,0^GFA,4,4,2,7FF0FFF0^FS\r\n") == 0);
 
     rcpt_image_free(img);
 }

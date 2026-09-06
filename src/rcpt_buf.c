@@ -97,33 +97,54 @@ void rcpt_w_int(rcpt_buf *b, int32_t v) {
     }
 }
 
-void rcpt_w_bits(rcpt_buf *b, const uint8_t *p, size_t n, int invert) {
-    if (!invert) {
-        rcpt_w_bytes(b, p, n);
-        return;
+static uint8_t output_byte(uint8_t v, uint32_t x, const rcpt_image *img, int invert, int pad_one) {
+    uint32_t tail = img->width & 7u;
+
+    if (invert) v = (uint8_t)~v;
+    if (tail && x == img->stride - 1u) {
+        uint8_t mask = (uint8_t)(0xFFu << (8u - tail));
+        v            = pad_one ? (uint8_t)(v | (uint8_t)~mask) : (uint8_t)(v & mask);
     }
-    while (n) {
-        uint8_t tmp[128];
-        size_t i, chunk = n < sizeof(tmp) ? n : sizeof(tmp);
-        for (i = 0; i < chunk; i++)
-            tmp[i] = (uint8_t)~p[i];
-        rcpt_w_bytes(b, tmp, chunk);
-        p += chunk;
-        n -= chunk;
+    return v;
+}
+
+void rcpt_w_image_bits(rcpt_buf *b, const rcpt_image *img, uint32_t y, uint32_t rows, int invert, int pad_one) {
+    uint32_t row;
+
+    for (row = 0; row < rows; row++) {
+        const uint8_t *p = img->data + (size_t)(y + row) * img->stride;
+        uint32_t x       = 0;
+
+        while (x < img->stride) {
+            uint8_t tmp[128];
+            uint32_t i, chunk = img->stride - x;
+            if (chunk > sizeof(tmp)) chunk = sizeof(tmp);
+            for (i = 0; i < chunk; i++)
+                tmp[i] = output_byte(p[x + i], x + i, img, invert, pad_one);
+            rcpt_w_bytes(b, tmp, chunk);
+            x += chunk;
+        }
     }
 }
 
-void rcpt_w_hex(rcpt_buf *b, const uint8_t *p, size_t n, int invert) {
-    while (n) {
-        char tmp[256];
-        size_t i, chunk = n < sizeof(tmp) / 2 ? n : sizeof(tmp) / 2;
-        for (i = 0; i < chunk; i++) {
-            uint8_t v      = invert ? (uint8_t)~p[i] : p[i];
-            tmp[i * 2]     = HEX_DIGITS[v >> 4];
-            tmp[i * 2 + 1] = HEX_DIGITS[v & 0x0Fu];
+void rcpt_w_image_hex(rcpt_buf *b, const rcpt_image *img, int invert, int pad_one) {
+    uint32_t y;
+
+    for (y = 0; y < img->height; y++) {
+        const uint8_t *p = img->data + (size_t)y * img->stride;
+        uint32_t x       = 0;
+
+        while (x < img->stride) {
+            char tmp[256];
+            uint32_t i, chunk = img->stride - x;
+            if (chunk > sizeof(tmp) / 2) chunk = sizeof(tmp) / 2;
+            for (i = 0; i < chunk; i++) {
+                uint8_t v      = output_byte(p[x + i], x + i, img, invert, pad_one);
+                tmp[i * 2]     = HEX_DIGITS[v >> 4];
+                tmp[i * 2 + 1] = HEX_DIGITS[v & 0x0Fu];
+            }
+            rcpt_w_bytes(b, tmp, chunk * 2);
+            x += chunk;
         }
-        rcpt_w_bytes(b, tmp, chunk * 2);
-        p += chunk;
-        n -= chunk;
     }
 }

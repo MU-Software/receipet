@@ -93,18 +93,12 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t media_type, uint8
         uint32_t x;
 
         for (x = 0; x < RASTER_BYTES; x++)
-            line[x] = invert ? 0xFFu : 0x00u;
+            line[x] = 0x00u;
 
         for (x = 0; x < img->width; x++) {
             uint32_t d = offset + x;
-            if (d >= RASTER_DOTS) break; /* past the head */
-            d = RASTER_DOTS - 1u - d;    /* left-referenced dot -> bit, the line runs right to left */
-            if (rcpt_image_get_pixel(img, (int32_t)x, (int32_t)y)) {
-                if (invert)
-                    line[d >> 3] &= (uint8_t)~(0x80u >> (d & 7u));
-                else
-                    line[d >> 3] |= (uint8_t)(0x80u >> (d & 7u));
-            }
+            d          = RASTER_DOTS - 1u - d; /* left-referenced dot -> bit, the line runs right to left */
+            if (rcpt_image_get_pixel(img, (int32_t)x, (int32_t)y) != invert) line[d >> 3] |= (uint8_t)(0x80u >> (d & 7u));
         }
 
         rcpt_w_byte(out, 'g');
