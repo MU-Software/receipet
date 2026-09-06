@@ -37,12 +37,17 @@ export const BROTHER_MEDIA_DIE_CUT: number;
 export const BROTHER_ERR_NO_MEDIA: number;
 export const BROTHER_ERR_END_OF_MEDIA: number;
 export const BROTHER_ERR_CUTTER_JAM: number;
+export const BROTHER_ERR_WEAK_BATTERIES: number;
 export const BROTHER_ERR_IN_USE: number;
 export const BROTHER_ERR_POWERED_OFF: number;
+export const BROTHER_ERR_HIGH_VOLTAGE_ADAPTER: number;
+export const BROTHER_ERR_FAN_MOTOR: number;
 export const BROTHER_ERR_REPLACE_MEDIA: number;
 export const BROTHER_ERR_BUFFER_FULL: number;
 export const BROTHER_ERR_COMMS: number;
+export const BROTHER_ERR_COMM_BUFFER_FULL: number;
 export const BROTHER_ERR_COVER_OPEN: number;
+export const BROTHER_ERR_CANCEL_KEY: number;
 export const BROTHER_ERR_CANNOT_FEED: number;
 export const BROTHER_ERR_SYSTEM: number;
 

@@ -37,12 +37,17 @@ export const BROTHER_MEDIA_DIE_CUT = 11;
 export const BROTHER_ERR_NO_MEDIA = 1;
 export const BROTHER_ERR_END_OF_MEDIA = 2;
 export const BROTHER_ERR_CUTTER_JAM = 4;
+export const BROTHER_ERR_WEAK_BATTERIES = 8;
 export const BROTHER_ERR_IN_USE = 16;
 export const BROTHER_ERR_POWERED_OFF = 32;
+export const BROTHER_ERR_HIGH_VOLTAGE_ADAPTER = 64;
+export const BROTHER_ERR_FAN_MOTOR = 128;
 export const BROTHER_ERR_REPLACE_MEDIA = 256;
 export const BROTHER_ERR_BUFFER_FULL = 512;
 export const BROTHER_ERR_COMMS = 1024;
+export const BROTHER_ERR_COMM_BUFFER_FULL = 2048;
 export const BROTHER_ERR_COVER_OPEN = 4096;
+export const BROTHER_ERR_CANCEL_KEY = 8192;
 export const BROTHER_ERR_CANNOT_FEED = 16384;
 export const BROTHER_ERR_SYSTEM = 32768;
 

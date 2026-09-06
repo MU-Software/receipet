@@ -392,7 +392,7 @@ static void test_brother_status(void) {
     reply[1]  = 0x20;
     reply[2]  = 0x42;
     reply[3]  = 0x34;
-    reply[4]  = 0x37; /* QL-720NW */
+    reply[4]  = 0x41; /* QL-820NWB */
     reply[8]  = 0x01; /* error information 1: no media */
     reply[9]  = 0x10; /* error information 2: cover open */
     reply[10] = 62;   /* media width, mm */
@@ -405,7 +405,7 @@ static void test_brother_status(void) {
     reply[22] = 0x03; /* cooling started */
 
     CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply)) == RCPT_OK);
-    CHECK(st.model == 0x37);
+    CHECK(st.model == 0x41);
     CHECK(st.media_width_mm == 62);
     CHECK(st.media_length_mm == 0);
     CHECK(st.media_type == RCPT_BROTHER_MEDIA_CONTINUOUS);
@@ -418,6 +418,16 @@ static void test_brother_status(void) {
     CHECK((st.errors & RCPT_BROTHER_ERR_NO_MEDIA) != 0);
     CHECK((st.errors & RCPT_BROTHER_ERR_COVER_OPEN) != 0);
     CHECK((st.errors & RCPT_BROTHER_ERR_REPLACE_MEDIA) == 0);
+
+    reply[8] = 0xC8; /* all three previously unnamed error-information-1 bits */
+    reply[9] = 0x28; /* both previously unnamed error-information-2 bits */
+    CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply)) == RCPT_OK);
+    CHECK(st.errors == (RCPT_BROTHER_ERR_WEAK_BATTERIES | RCPT_BROTHER_ERR_HIGH_VOLTAGE_ADAPTER | RCPT_BROTHER_ERR_FAN_MOTOR |
+                        RCPT_BROTHER_ERR_COMM_BUFFER_FULL | RCPT_BROTHER_ERR_CANCEL_KEY));
+
+    reply[8] = 0x01;
+    reply[9] = 0x10;
+    CHECK(rcpt_parse_brother_status(&st, reply, sizeof(reply)) == RCPT_OK);
 
     /* Field for field against the struct: a swapped pair shows up here rather
      * than at a caller. */

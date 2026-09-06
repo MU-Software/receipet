@@ -84,7 +84,7 @@ function encode(M, call) {
 // matching value.  Same bytes as test_brother_status() in tests/.
 function checkBrotherStatus(M) {
   const reply = new Uint8Array(RCPT.BROTHER_STATUS_LEN);
-  reply[4] = 0x37;  // QL-720NW
+  reply[4] = 0x41;  // QL-820NWB
   reply[8] = 0x01;  // error information 1: no media
   reply[9] = 0x10;  // error information 2: cover open
   reply[10] = 62;   // media width, mm
@@ -107,7 +107,7 @@ function checkBrotherStatus(M) {
     const errors = u16(RCPT.BROTHER_STATUS_ERRORS_OFFSET);
 
     const expected = {
-      model: [u8(RCPT.BROTHER_STATUS_MODEL_OFFSET), 0x37],
+      model: [u8(RCPT.BROTHER_STATUS_MODEL_OFFSET), 0x41],
       media_width_mm: [u8(RCPT.BROTHER_STATUS_MEDIA_WIDTH_MM_OFFSET), 62],
       media_length_mm: [u8(RCPT.BROTHER_STATUS_MEDIA_LENGTH_MM_OFFSET), 0],
       media_type: [u8(RCPT.BROTHER_STATUS_MEDIA_TYPE_OFFSET), RCPT.BROTHER_MEDIA_CONTINUOUS],

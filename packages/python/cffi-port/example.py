@@ -39,6 +39,7 @@ print(img.zpl(x=40, y=100, flags=RAW)[:32].decode("ascii"))
 assert BROTHER_STATUS_REQUEST == b"\x1b\x69\x53"
 reply = bytearray(32)
 reply[0:5] = b"\x80\x20\x42\x34\x41"  # fixed header, then model code
+reply[8] = 0x80  # error information 1, bit 7: fan motor error
 reply[9] = 0x10  # error information 2, bit 4
 reply[10] = 38  # media width, mm
 reply[11] = 0x0B  # die-cut label
@@ -46,4 +47,5 @@ reply[17] = 90  # media length, mm
 reply[18] = 0x02  # status type: error occurred
 
 st = BrotherStatus(bytes(reply))
+assert st["error_names"] == ["fan motor error", "cover open"]
 print(f"status  {st['media_width_mm']}x{st['media_length_mm']}mm  errors={st['error_names']}")

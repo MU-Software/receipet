@@ -158,17 +158,22 @@ RCPT_API rcpt_result rcpt_enc_brother(rcpt_buf *out, const rcpt_image *img, uint
 #define RCPT_BROTHER_MEDIA_DIE_CUT    0x0B
 
 /* errors: information 1 in the low byte, 2 in the high one */
-#define RCPT_BROTHER_ERR_NO_MEDIA      (1u << 0)
-#define RCPT_BROTHER_ERR_END_OF_MEDIA  (1u << 1)
-#define RCPT_BROTHER_ERR_CUTTER_JAM    (1u << 2)
-#define RCPT_BROTHER_ERR_IN_USE        (1u << 4)
-#define RCPT_BROTHER_ERR_POWERED_OFF   (1u << 5)
-#define RCPT_BROTHER_ERR_REPLACE_MEDIA (1u << 8)
-#define RCPT_BROTHER_ERR_BUFFER_FULL   (1u << 9)
-#define RCPT_BROTHER_ERR_COMMS         (1u << 10)
-#define RCPT_BROTHER_ERR_COVER_OPEN    (1u << 12)
-#define RCPT_BROTHER_ERR_CANNOT_FEED   (1u << 14)
-#define RCPT_BROTHER_ERR_SYSTEM        (1u << 15)
+#define RCPT_BROTHER_ERR_NO_MEDIA             (1u << 0)
+#define RCPT_BROTHER_ERR_END_OF_MEDIA         (1u << 1)
+#define RCPT_BROTHER_ERR_CUTTER_JAM           (1u << 2)
+#define RCPT_BROTHER_ERR_WEAK_BATTERIES       (1u << 3)
+#define RCPT_BROTHER_ERR_IN_USE               (1u << 4)
+#define RCPT_BROTHER_ERR_POWERED_OFF          (1u << 5)
+#define RCPT_BROTHER_ERR_HIGH_VOLTAGE_ADAPTER (1u << 6)
+#define RCPT_BROTHER_ERR_FAN_MOTOR            (1u << 7)
+#define RCPT_BROTHER_ERR_REPLACE_MEDIA        (1u << 8)
+#define RCPT_BROTHER_ERR_BUFFER_FULL          (1u << 9)
+#define RCPT_BROTHER_ERR_COMMS                (1u << 10)
+#define RCPT_BROTHER_ERR_COMM_BUFFER_FULL     (1u << 11)
+#define RCPT_BROTHER_ERR_COVER_OPEN           (1u << 12)
+#define RCPT_BROTHER_ERR_CANCEL_KEY           (1u << 13)
+#define RCPT_BROTHER_ERR_CANNOT_FEED          (1u << 14)
+#define RCPT_BROTHER_ERR_SYSTEM               (1u << 15)
 
 typedef struct rcpt_brother_status {
     uint8_t model;           /* raw model code; 0x37 is a QL-720NW */
