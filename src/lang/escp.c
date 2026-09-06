@@ -69,5 +69,9 @@ static void emit(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t fl
 }
 
 rcpt_result rcpt_enc_escp(rcpt_buf *out, const rcpt_image *img, uint8_t mode, uint32_t flags) {
+    rcpt_result checked = rcpt_enc_start(out, img);
+    if (checked != RCPT_OK) return checked;
+    if (mode != 0 && mode != 1 && mode != 2 && mode != 3 && mode != 32 && mode != 33 && mode != 38 && mode != 39 && mode != 40) return RCPT_ERR_ARG;
+
     RCPT_ENCODE(img, mode, flags);
 }

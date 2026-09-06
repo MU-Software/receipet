@@ -43,5 +43,9 @@ static void emit(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uin
 }
 
 rcpt_result rcpt_enc_zpl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32_t y, uint32_t copies, uint32_t flags) {
+    rcpt_result checked = rcpt_enc_start(out, img);
+    if (checked != RCPT_OK) return checked;
+    if (x < 0 || x > 32000 || y < 0 || y > 32000) return RCPT_ERR_ARG;
+
     RCPT_ENCODE(img, x, y, copies, flags);
 }

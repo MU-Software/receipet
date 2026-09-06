@@ -57,6 +57,7 @@ rcpt_result rcpt_enc_tspl(rcpt_buf *out, const rcpt_image *img, int32_t x, int32
                           uint32_t flags) {
     rcpt_result checked = rcpt_enc_start(out, img);
     if (checked != RCPT_OK) return checked;
+    if (mode > 2) return RCPT_ERR_ARG;
     if ((int64_t)y + img->height - 1 > INT32_MAX) return RCPT_ERR_ARG;
 
     RCPT_ENCODE(img, x, y, mode, chunk_rows, copies, flags);

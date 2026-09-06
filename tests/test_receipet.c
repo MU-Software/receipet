@@ -225,6 +225,11 @@ static void test_escp(void) {
     n = take(&job, out, sizeof(out));
     CHECK(n == 9);
     CHECK(out[5] == 0x60 && out[6] == 0xE0); /* only the three image rows invert */
+
+    job.data = (uint8_t *)1;
+    job.cap = job.len = 12345;
+    CHECK(rcpt_enc_escp(&job, img, 200, RCPT_F_RAW) == RCPT_ERR_ARG);
+    CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
     rcpt_image_free(img);
 }
 
@@ -285,6 +290,11 @@ static void test_tspl(void) {
     CHECK(n == sizeof(prefix) - 1 + 4 + 2);
     CHECK(out[sizeof(prefix) - 1] == 0x80 && out[sizeof(prefix)] == 0x0F);
     CHECK(out[sizeof(prefix) + 1] == 0x00 && out[sizeof(prefix) + 2] == 0x0F);
+
+    job.data = (uint8_t *)1;
+    job.cap = job.len = 12345;
+    CHECK(rcpt_enc_tspl(&job, img, 0, 0, 99, 0, 1, RCPT_F_RAW) == RCPT_ERR_ARG);
+    CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
     rcpt_image_free(img);
 }
 
@@ -503,6 +513,21 @@ static void test_cpcl_zpl(void) {
     n      = take(&job, (uint8_t *)out, sizeof(out) - 1);
     out[n] = '\0';
     CHECK(strcmp(out, "^FO0,0^GFA,4,4,2,7FF0FFF0^FS\r\n") == 0);
+
+    job.data = (uint8_t *)1;
+    job.cap = job.len = 12345;
+    CHECK(rcpt_enc_cpcl(&job, img, -1, 0, 0, 1, RCPT_F_RAW) == RCPT_ERR_ARG);
+    CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
+
+    job.data = (uint8_t *)1;
+    job.cap = job.len = 12345;
+    CHECK(rcpt_enc_zpl(&job, img, 0, -1, 1, RCPT_F_RAW) == RCPT_ERR_ARG);
+    CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
+
+    CHECK(rcpt_enc_zpl(&job, img, 32000, 32000, 1, RCPT_F_RAW) == RCPT_OK);
+    rcpt_buf_free(&job);
+    CHECK(rcpt_enc_zpl(&job, img, 32001, 0, 1, RCPT_F_RAW) == RCPT_ERR_ARG);
+    CHECK(job.data == NULL && job.cap == 0 && job.len == 0);
 
     rcpt_image_free(img);
 }
