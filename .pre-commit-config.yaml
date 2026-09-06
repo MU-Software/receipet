@@ -19,7 +19,7 @@ repos:
       - id: clang-format
         types_or: [c]
         # .clang-format carries the style: K&R braces, 4-space indent, 150 columns
-        files: ^(include|src|examples|tests)/.*\.(c|h)$
+        files: ^(include|src|examples|tests|tools)/.*\.(c|h)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.1
